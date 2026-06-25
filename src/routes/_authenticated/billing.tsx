@@ -74,7 +74,7 @@ const TIERS: Tier[] = [
 function BillingPage() {
   const get = useServerFn(getSettings);
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get() });
-  const plan = (q.data?.plan ?? "free") as "free" | "pro";
+  const plan = (q.data?.plan ?? "free") as "free" | "pro" | "ultra";
 
   const handleSelect = (tier: Tier) => {
     if (tier.id === "free" && plan === "free") {

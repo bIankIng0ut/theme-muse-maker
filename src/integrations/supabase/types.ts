@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_keys: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string | null
+          last_used_at: string | null
+          revoked_at: string | null
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked_at?: string | null
+          tier?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked_at?: string | null
+          tier?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_steps: {
         Row: {
           created_at: string
@@ -189,6 +228,9 @@ export type Database = {
         Row: {
           byo_keys: Json
           created_at: string
+          discord_id: string | null
+          discord_username: string | null
+          discord_verified_at: string | null
           nightly_count: number
           nightly_window_start: string
           plan: string
@@ -198,6 +240,9 @@ export type Database = {
         Insert: {
           byo_keys?: Json
           created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
+          discord_verified_at?: string | null
           nightly_count?: number
           nightly_window_start?: string
           plan?: string
@@ -207,6 +252,9 @@ export type Database = {
         Update: {
           byo_keys?: Json
           created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
+          discord_verified_at?: string | null
           nightly_count?: number
           nightly_window_start?: string
           plan?: string

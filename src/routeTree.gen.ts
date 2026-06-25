@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedLaunchRouteImport } from './routes/_authenticated/launch'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSitesRoute = AuthenticatedSitesRouteImport.update({
+  id: '/sites',
+  path: '/sites',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/sites': typeof AuthenticatedSitesRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/sites': typeof AuthenticatedSitesRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/launch': typeof AuthenticatedLaunchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/sites': typeof AuthenticatedSitesRoute
   '/_authenticated/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/launch'
     | '/settings'
+    | '/sites'
     | '/investigate/$id'
     | '/report/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/launch'
     | '/settings'
+    | '/sites'
     | '/investigate/$id'
     | '/report/$id'
   id:
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/launch'
     | '/_authenticated/settings'
+    | '/_authenticated/sites'
     | '/_authenticated/investigate/$id'
     | '/_authenticated/report/$id'
   fileRoutesById: FileRoutesById
@@ -159,6 +171,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/sites': {
+      id: '/_authenticated/sites'
+      path: '/sites'
+      fullPath: '/sites'
+      preLoaderRoute: typeof AuthenticatedSitesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -210,6 +229,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedLaunchRoute: typeof AuthenticatedLaunchRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
   AuthenticatedInvestigateIdRoute: typeof AuthenticatedInvestigateIdRoute
   AuthenticatedReportIdRoute: typeof AuthenticatedReportIdRoute
 }
@@ -219,6 +239,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedLaunchRoute: AuthenticatedLaunchRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSitesRoute: AuthenticatedSitesRoute,
   AuthenticatedInvestigateIdRoute: AuthenticatedInvestigateIdRoute,
   AuthenticatedReportIdRoute: AuthenticatedReportIdRoute,
 }

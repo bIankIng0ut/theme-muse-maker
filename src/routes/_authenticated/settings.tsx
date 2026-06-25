@@ -82,9 +82,11 @@ function SettingsPage() {
             <div>
               <div className="text-2xl font-semibold tracking-tight capitalize">{plan}</div>
               <div className="text-xs text-muted-foreground mt-1 max-w-xs">
-                {plan === "pro"
-                  ? "Unlimited investigations on the Vantage engine, hosted keys."
-                  : "Bring your own API keys. 15 investigations per night on the Vantage engine."}
+                {plan === "ultra"
+                  ? "Ultra Pro: unlimited investigations, premium hosted Vantage AI (Gemini 2.5 Pro), no rate caps."
+                  : plan === "pro"
+                    ? "Hosted Vantage AI included. Unlimited investigations."
+                    : "Free tier: bring your own LLM key. Hosted AI is locked — upgrade for full agent reasoning."}
               </div>
             </div>
             {plan === "free" && (

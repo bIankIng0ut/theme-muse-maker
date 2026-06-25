@@ -133,7 +133,7 @@ export type Database = {
           owner_id: string
           status?: string
           target: string
-          target_type: string
+          target_type?: string
           updated_at?: string
         }
         Update: {
@@ -154,28 +154,25 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          identity_graph: Json | null
+          identity_graph: Json
           investigation_id: string
-          markdown: string | null
-          pdf_url: string | null
+          markdown: string
           summary: string | null
         }
         Insert: {
           created_at?: string
           id?: string
-          identity_graph?: Json | null
+          identity_graph?: Json
           investigation_id: string
-          markdown?: string | null
-          pdf_url?: string | null
+          markdown: string
           summary?: string | null
         }
         Update: {
           created_at?: string
           id?: string
-          identity_graph?: Json | null
+          identity_graph?: Json
           investigation_id?: string
-          markdown?: string | null
-          pdf_url?: string | null
+          markdown?: string
           summary?: string | null
         }
         Relationships: [
@@ -223,7 +220,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      owns_investigation: { Args: { _inv: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

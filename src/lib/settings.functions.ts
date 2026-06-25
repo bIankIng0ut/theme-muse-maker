@@ -44,12 +44,15 @@ export const getSettings = createServerFn({ method: "GET" })
     const row = await ensureRow(supabase, userId);
     const keys = ByoKeysSchema.parse(row.byo_keys ?? {});
     const masked = Object.fromEntries(
-      Object.entries(keys).map(([k, v]) => [k, v ? `${"•".repeat(Math.min(20, Math.max(0, v.length - 4)))}${v.slice(-4)}` : ""]),
+      Object.entries(keys).map(([k, v]) => {
+        if (k === "openrouter_model") return [k, v ?? ""];
+        return [k, v ? `${"•".repeat(Math.min(20, Math.max(0, v.length - 4)))}${v.slice(-4)}` : ""];
+      }),
     ) as ByoKeys;
     return {
       plan: row.plan as "free" | "pro",
       keys: masked,
-      hasAnyKey: Object.values(keys).some((v) => v && v.length > 0),
+      hasAnyKey: Object.entries(keys).some(([k, v]) => k !== "openrouter_model" && v && v.length > 0),
       quota: computeQuota(row),
     };
   });

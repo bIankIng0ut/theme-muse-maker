@@ -12,14 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedLaunchRouteImport } from './routes/_authenticated/launch'
+import { Route as AuthenticatedKeysRouteImport } from './routes/_authenticated/keys'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedReportIdRouteImport } from './routes/_authenticated/report.$id'
 import { Route as AuthenticatedInvestigateIdRouteImport } from './routes/_authenticated/investigate.$id'
+import { Route as ApiPublicDiscordStartRouteImport } from './routes/api/public/discord/start'
+import { Route as ApiPublicDiscordCallbackRouteImport } from './routes/api/public/discord/callback'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -35,6 +39,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSitesRoute = AuthenticatedSitesRouteImport.update({
   id: '/sites',
   path: '/sites',
@@ -48,6 +57,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedLaunchRoute = AuthenticatedLaunchRouteImport.update({
   id: '/launch',
   path: '/launch',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKeysRoute = AuthenticatedKeysRouteImport.update({
+  id: '/keys',
+  path: '/keys',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
@@ -76,6 +90,17 @@ const AuthenticatedInvestigateIdRoute =
     path: '/investigate/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicDiscordStartRoute = ApiPublicDiscordStartRouteImport.update({
+  id: '/api/public/discord/start',
+  path: '/api/public/discord/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicDiscordCallbackRoute =
+  ApiPublicDiscordCallbackRouteImport.update({
+    id: '/api/public/discord/callback',
+    path: '/api/public/discord/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,11 +108,15 @@ export interface FileRoutesByFullPath {
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/keys': typeof AuthenticatedKeysRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/api/chat': typeof ApiChatRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
+  '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
+  '/api/public/discord/start': typeof ApiPublicDiscordStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -95,11 +124,15 @@ export interface FileRoutesByTo {
   '/billing': typeof AuthenticatedBillingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/keys': typeof AuthenticatedKeysRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/api/chat': typeof ApiChatRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
+  '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
+  '/api/public/discord/start': typeof ApiPublicDiscordStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -109,11 +142,15 @@ export interface FileRoutesById {
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/keys': typeof AuthenticatedKeysRoute
   '/_authenticated/launch': typeof AuthenticatedLaunchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
+  '/api/chat': typeof ApiChatRoute
   '/_authenticated/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
+  '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
+  '/api/public/discord/start': typeof ApiPublicDiscordStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,11 +160,15 @@ export interface FileRouteTypes {
     | '/billing'
     | '/dashboard'
     | '/history'
+    | '/keys'
     | '/launch'
     | '/settings'
     | '/sites'
+    | '/api/chat'
     | '/investigate/$id'
     | '/report/$id'
+    | '/api/public/discord/callback'
+    | '/api/public/discord/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -135,11 +176,15 @@ export interface FileRouteTypes {
     | '/billing'
     | '/dashboard'
     | '/history'
+    | '/keys'
     | '/launch'
     | '/settings'
     | '/sites'
+    | '/api/chat'
     | '/investigate/$id'
     | '/report/$id'
+    | '/api/public/discord/callback'
+    | '/api/public/discord/start'
   id:
     | '__root__'
     | '/'
@@ -148,17 +193,24 @@ export interface FileRouteTypes {
     | '/_authenticated/billing'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/keys'
     | '/_authenticated/launch'
     | '/_authenticated/settings'
     | '/_authenticated/sites'
+    | '/api/chat'
     | '/_authenticated/investigate/$id'
     | '/_authenticated/report/$id'
+    | '/api/public/discord/callback'
+    | '/api/public/discord/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ApiPublicDiscordCallbackRoute: typeof ApiPublicDiscordCallbackRoute
+  ApiPublicDiscordStartRoute: typeof ApiPublicDiscordStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/sites': {
       id: '/_authenticated/sites'
       path: '/sites'
@@ -203,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/launch'
       fullPath: '/launch'
       preLoaderRoute: typeof AuthenticatedLaunchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/keys': {
+      id: '/_authenticated/keys'
+      path: '/keys'
+      fullPath: '/keys'
+      preLoaderRoute: typeof AuthenticatedKeysRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/history': {
@@ -240,6 +306,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvestigateIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/discord/start': {
+      id: '/api/public/discord/start'
+      path: '/api/public/discord/start'
+      fullPath: '/api/public/discord/start'
+      preLoaderRoute: typeof ApiPublicDiscordStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/discord/callback': {
+      id: '/api/public/discord/callback'
+      path: '/api/public/discord/callback'
+      fullPath: '/api/public/discord/callback'
+      preLoaderRoute: typeof ApiPublicDiscordCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -247,6 +327,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedKeysRoute: typeof AuthenticatedKeysRoute
   AuthenticatedLaunchRoute: typeof AuthenticatedLaunchRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
@@ -258,6 +339,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedKeysRoute: AuthenticatedKeysRoute,
   AuthenticatedLaunchRoute: AuthenticatedLaunchRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,
@@ -272,6 +354,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiChatRoute: ApiChatRoute,
+  ApiPublicDiscordCallbackRoute: ApiPublicDiscordCallbackRoute,
+  ApiPublicDiscordStartRoute: ApiPublicDiscordStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

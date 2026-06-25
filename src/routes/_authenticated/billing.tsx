@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getSettings } from "@/lib/settings.functions";
@@ -29,13 +29,13 @@ const TIERS: Tier[] = [
     cadence: "forever",
     tagline: "Get on the radar with bring-your-own keys.",
     features: [
+      "Private access key — 14 day validity",
       `${SITE_COUNTS.free.toLocaleString()} mainstream platforms scanned per run`,
       "15 investigations / night",
       "Bring-your-own LLM keys (OpenRouter, OpenAI, Anthropic, Gemini)",
-      "Full dossier export (Markdown)",
       "Identity graph + evidence vault",
     ],
-    cta: "Current plan",
+    cta: "Claim free key",
   },
   {
     id: "pro",
@@ -44,12 +44,12 @@ const TIERS: Tier[] = [
     cadence: "per month",
     tagline: "Hosted engine, full long-tail coverage.",
     features: [
+      "Access key — 90 day validity, rotatable anytime",
       `${SITE_COUNTS.pro.toLocaleString()} platforms — regional, niche, and long-tail`,
       "Unlimited investigations",
-      "Vantage-managed LLM keys included",
+      "AI support assistant included",
       "Screenshot capture + ScrapingAnt routing",
       "Priority queue + nightly auto-watch",
-      "Slack / webhook alerts",
     ],
     cta: "Upgrade to Analyst",
     highlighted: true,
@@ -62,9 +62,10 @@ const TIERS: Tier[] = [
     tagline: "For teams running standing collection programs.",
     features: [
       "Everything in Analyst",
+      "Access key — 365 day validity",
+      "Premium AI support (Gemini 2.5 Pro)",
       "SSO + role-based access",
       "Dedicated tenant + audit log",
-      "BYO infrastructure (S3, Postgres)",
       "Custom adapters & SLA",
     ],
     cta: "Contact ops",
@@ -75,10 +76,11 @@ function BillingPage() {
   const get = useServerFn(getSettings);
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get() });
   const plan = (q.data?.plan ?? "free") as "free" | "pro" | "ultra";
+  const navigate = useNavigate();
 
   const handleSelect = (tier: Tier) => {
-    if (tier.id === "free" && plan === "free") {
-      toast.info("You're on the Operator tier.");
+    if (tier.id === "free") {
+      navigate({ to: "/keys" });
       return;
     }
     if (tier.id === "enterprise") {
@@ -158,13 +160,24 @@ function BillingPage() {
         })}
       </div>
 
-      <div className="glass rounded-2xl p-5 text-xs text-muted-foreground">
+      <div className="rounded-2xl border border-warning/40 bg-warning/5 p-5 text-xs text-warning-foreground/90 space-y-1.5">
+        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-warning mb-1">
+          ⚠ Access key warning — every tier
+        </div>
+        <p className="text-foreground/90">
+          Every plan ships with a private access key. <strong>Save it somewhere safe
+          the moment it's generated</strong> — we hash it on creation and never show it
+          again. Lose it, and you'll need to generate a new one from{" "}
+          <code className="font-mono">Settings → Access Keys</code>.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-5 text-xs text-muted-foreground">
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-foreground/80 mb-2">
           Payments rail
         </div>
-        Vantage is finalising its payments provider. Once enabled, switching to
-        Analyst is a one-click checkout — your investigations, history, and
-        identity graphs carry over with zero migration.
+        Vantage is finalising its payments provider. Once enabled, switching tier
+        is one click — your investigations, history, and identity graphs carry over.
       </div>
     </div>
   );

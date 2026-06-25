@@ -52,10 +52,30 @@ export async function runInvestigation(investigationId: string, ownerId: string)
 
   try {
     await setStatus(investigationId, "running");
+
+    // Triage: have the configured LLM (OpenRouter / OpenAI / Anthropic /
+    // Gemini / Lovable AI) classify the target before tool execution.
+    let triageNote = "Triage: classifying target and loading strategy";
+    let triageProvider = "lovable";
+    try {
+      const triage = await callLlm(ownerId, [
+        {
+          role: "system",
+          content:
+            "You are Vantage's triage analyst. Given a target, output one short sentence describing the optimal OSINT strategy. No preamble.",
+        },
+        { role: "user", content: `Target: ${investigationId}` },
+      ]);
+      triageNote = `Triage (${triage.provider}/${triage.model}): ${triage.text.slice(0, 200)}`;
+      triageProvider = triage.provider;
+    } catch (e) {
+      triageNote = `Triage skipped: ${e instanceof Error ? e.message : String(e)}`;
+    }
     await writeStep(investigationId, stepIndex++, {
       tool_name: null,
-      note: "Triage: classifying target and loading strategy",
+      note: triageNote,
       status: "done",
+      tool_output: { provider: triageProvider },
     });
 
     const phases: Array<{ tool: string; input: Record<string, unknown>; note: string }> = [

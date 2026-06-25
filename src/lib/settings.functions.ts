@@ -50,7 +50,7 @@ export const getSettings = createServerFn({ method: "GET" })
       }),
     ) as ByoKeys;
     return {
-      plan: row.plan as "free" | "pro",
+      plan: row.plan as "free" | "pro" | "ultra",
       keys: masked,
       hasAnyKey: Object.entries(keys).some(([k, v]) => k !== "openrouter_model" && v && v.length > 0),
       quota: computeQuota(row),

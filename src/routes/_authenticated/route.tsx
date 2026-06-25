@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/vantage/Sidebar";
+import { DiscordGate } from "@/components/vantage/DiscordGate";
+import { SupportAssistant } from "@/components/vantage/SupportAssistant";
 import { Bell, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -40,9 +42,12 @@ function AuthenticatedLayout() {
           </button>
         </header>
         <main className="flex-1 px-4 md:px-8 py-6 max-w-7xl w-full mx-auto">
-          <Outlet />
+          <DiscordGate userId={user.id}>
+            <Outlet />
+          </DiscordGate>
         </main>
       </div>
+      <SupportAssistant />
     </div>
   );
 }

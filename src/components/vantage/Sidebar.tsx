@@ -11,8 +11,12 @@ import {
   Radar,
   Globe,
   CreditCard,
+  Key,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { DiscordIcon } from "@/components/vantage/DiscordGate";
+
+const DISCORD_INVITE = "https://discord.gg/JqvvWBZJKr";
 
 const NAV: { section?: string; items: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
   {
@@ -34,6 +38,7 @@ const NAV: { section?: string; items: { to: string; label: string; icon: React.C
   {
     section: "System",
     items: [
+      { to: "/keys", label: "Access Keys", icon: Key },
       { to: "/billing", label: "Plans & Billing", icon: CreditCard },
       { to: "/settings", label: "Settings", icon: Settings },
     ],
@@ -103,7 +108,16 @@ export function Sidebar({ email }: { email?: string }) {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-border/60">
+      <div className="p-3 border-t border-border/60 space-y-1">
+        <a
+          href={DISCORD_INVITE}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        >
+          <DiscordIcon className="h-3.5 w-3.5" />
+          Discord community
+        </a>
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"

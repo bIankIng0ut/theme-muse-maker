@@ -3,8 +3,29 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getInvestigation } from "@/lib/investigations.functions";
 import { StatusBadge } from "@/components/vantage/StatusBadge";
+import { IdentityGraph } from "@/components/vantage/IdentityGraph";
 import { ArrowLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
+
+type GraphNode = { id: string; label?: string; type?: string };
+type GraphEdge = { source: string; target: string; label?: string };
+
+function buildFallbackGraph(target: string, findings: { platform?: string | null; url?: string | null; username?: string | null }[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const nodes: GraphNode[] = [{ id: "root", label: target, type: "target" }];
+  const edges: GraphEdge[] = [];
+  const seen = new Set<string>();
+  for (const f of findings.slice(0, 18)) {
+    const label = f.username || f.platform || f.url;
+    if (!label) continue;
+    const id = `${f.platform ?? "src"}:${label}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    nodes.push({ id, label, type: f.platform ?? undefined });
+    edges.push({ source: "root", target: id, label: f.platform ?? undefined });
+  }
+  return { nodes, edges };
+}
+
 
 export const Route = createFileRoute("/_authenticated/report/$id")({
   component: ReportPage,
@@ -66,6 +87,14 @@ function ReportPage() {
           <p className="mt-4 text-sm text-foreground/90">{report.summary}</p>
         )}
       </header>
+
+      {(() => {
+        const ig = (report?.identity_graph ?? null) as { nodes?: GraphNode[]; edges?: GraphEdge[] } | null;
+        const graph = ig?.nodes?.length
+          ? { nodes: ig.nodes, edges: ig.edges ?? [] }
+          : buildFallbackGraph(investigation.target, findings);
+        return <IdentityGraph nodes={graph.nodes} edges={graph.edges} />;
+      })()}
 
       {report?.markdown ? (
         <pre className="rounded-lg border border-border bg-surface p-6 font-mono text-xs whitespace-pre-wrap leading-relaxed overflow-x-auto">

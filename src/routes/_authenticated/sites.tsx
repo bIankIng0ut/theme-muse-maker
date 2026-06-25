@@ -30,7 +30,8 @@ const PAGE_SIZE = 80;
 function SitesPage() {
   const get = useServerFn(getSettings);
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get() });
-  const plan = (q.data?.plan ?? "free") as "free" | "pro";
+  const rawPlan = (q.data?.plan ?? "free") as "free" | "pro" | "ultra";
+  const plan: "free" | "pro" = rawPlan === "free" ? "free" : "pro";
 
   const [cat, setCat] = useState<SiteCategory | "all">("all");
   const [query, setQuery] = useState("");

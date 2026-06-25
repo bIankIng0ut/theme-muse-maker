@@ -41,11 +41,11 @@ function DashboardPage() {
 
   const rows = q.data ?? [];
   const total = rows.length;
-  const done = rows.filter((r) => r.status === "done").length;
+  const done = rows.filter((r: any) => r.status === "done").length;
 
   const buckets = new Array(14).fill(0) as number[];
   const now = Date.now();
-  for (const r of rows) {
+  for (const r of rows as any[]) {
     const days = Math.floor((now - new Date(r.created_at).getTime()) / 86_400_000);
     if (days >= 0 && days < 14) buckets[13 - days] += 1;
   }
@@ -126,7 +126,7 @@ function DashboardPage() {
               </Link>
             </div>
           )}
-          {rows.slice(0, 6).map((r, i) => (
+          {rows.slice(0, 6).map((r: any, i: number) => (
             <Link
               key={r.id}
               to="/investigate/$id"

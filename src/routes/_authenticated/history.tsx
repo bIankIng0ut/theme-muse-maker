@@ -48,7 +48,7 @@ function HistoryPage() {
             {q.data && q.data.length === 0 && (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No investigations yet</td></tr>
             )}
-            {q.data?.map((row) => (
+            {q.data?.map((row: any) => (
               <tr key={row.id} className="border-t border-border hover:bg-surface-elevated">
                 <td className="px-4 py-2.5 font-mono">{row.target}</td>
                 <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground uppercase">

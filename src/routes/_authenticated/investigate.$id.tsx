@@ -103,7 +103,7 @@ function InvestigatePage() {
             {steps.length === 0 && (
               <div className="text-muted-foreground py-4 text-center">Awaiting agent...</div>
             )}
-            {steps.map((s) => (
+            {steps.map((s: any) => (
               <div key={s.id} className="flex gap-2 items-start">
                 <span className="text-muted-foreground w-6 text-right shrink-0">
                   {String(s.step_index).padStart(2, "0")}
@@ -142,7 +142,7 @@ function InvestigatePage() {
                 No findings yet. OSINT adapters will populate this list once configured.
               </div>
             )}
-            {findings.map((f) => (
+            {findings.map((f: any) => (
               <div
                 key={f.id}
                 className="rounded border border-border bg-background p-3 flex items-start gap-3"

@@ -24,13 +24,18 @@ type ByoKeys = {
   openrouter_model?: string;
 };
 
-async function loadKeys(ownerId: string): Promise<ByoKeys> {
+type Plan = "free" | "pro" | "ultra";
+
+async function loadProfile(ownerId: string): Promise<{ keys: ByoKeys; plan: Plan }> {
   const { data } = await supabaseAdmin
     .from("user_settings")
-    .select("byo_keys")
+    .select("byo_keys, plan")
     .eq("user_id", ownerId)
     .maybeSingle();
-  return ((data?.byo_keys as ByoKeys | null) ?? {}) as ByoKeys;
+  const keys = ((data?.byo_keys as ByoKeys | null) ?? {}) as ByoKeys;
+  const rawPlan = ((data?.plan as string | null) ?? "free").toLowerCase();
+  const plan: Plan = rawPlan === "ultra" ? "ultra" : rawPlan === "pro" ? "pro" : "free";
+  return { keys, plan };
 }
 
 async function callOpenAICompatible(

@@ -41,6 +41,8 @@ function SettingsPage() {
     openai: "",
     anthropic: "",
     gemini: "",
+    openrouter: "",
+    openrouter_model: "",
     scrapingant: "",
     hibp: "",
     serpapi: "",

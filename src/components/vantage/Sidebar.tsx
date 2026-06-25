@@ -4,12 +4,13 @@ import {
   Crosshair,
   History,
   FileText,
-  Shield,
   Network,
   Database,
   Settings,
   LogOut,
   Radar,
+  Globe,
+  CreditCard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,11 +28,13 @@ const NAV: { section?: string; items: { to: string; label: string; icon: React.C
       { to: "/history", label: "Reports", icon: FileText },
       { to: "/dashboard", label: "Identity Graph", icon: Network },
       { to: "/dashboard", label: "Evidence Vault", icon: Database },
+      { to: "/sites", label: "Site Catalog", icon: Globe },
     ],
   },
   {
     section: "System",
     items: [
+      { to: "/billing", label: "Plans & Billing", icon: CreditCard },
       { to: "/settings", label: "Settings", icon: Settings },
     ],
   },

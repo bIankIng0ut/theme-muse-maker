@@ -82,7 +82,7 @@ export const updateSettings = createServerFn({ method: "POST" })
 
 export async function consumeQuotaOrThrow(supabase: any, userId: string) {
   const row = await ensureRow(supabase, userId);
-  if (row.plan === "pro") return;
+  if (row.plan === "pro" || row.plan === "ultra") return;
   const keys = ByoKeysSchema.parse(row.byo_keys ?? {});
   const hasKey = Object.entries(keys).some(([k, v]) => k !== "openrouter_model" && v && v.length > 0);
   if (!hasKey) {

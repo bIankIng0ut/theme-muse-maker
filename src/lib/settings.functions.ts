@@ -9,6 +9,8 @@ const ByoKeysSchema = z.object({
   openai: z.string().trim().max(256).optional().default(""),
   anthropic: z.string().trim().max(256).optional().default(""),
   gemini: z.string().trim().max(256).optional().default(""),
+  openrouter: z.string().trim().max(256).optional().default(""),
+  openrouter_model: z.string().trim().max(128).optional().default(""),
   scrapingant: z.string().trim().max(256).optional().default(""),
   hibp: z.string().trim().max(256).optional().default(""),
   serpapi: z.string().trim().max(256).optional().default(""),

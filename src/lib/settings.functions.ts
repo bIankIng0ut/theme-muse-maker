@@ -9,6 +9,8 @@ const ByoKeysSchema = z.object({
   openai: z.string().trim().max(256).optional().default(""),
   anthropic: z.string().trim().max(256).optional().default(""),
   gemini: z.string().trim().max(256).optional().default(""),
+  openrouter: z.string().trim().max(256).optional().default(""),
+  openrouter_model: z.string().trim().max(128).optional().default(""),
   scrapingant: z.string().trim().max(256).optional().default(""),
   hibp: z.string().trim().max(256).optional().default(""),
   serpapi: z.string().trim().max(256).optional().default(""),
@@ -42,12 +44,15 @@ export const getSettings = createServerFn({ method: "GET" })
     const row = await ensureRow(supabase, userId);
     const keys = ByoKeysSchema.parse(row.byo_keys ?? {});
     const masked = Object.fromEntries(
-      Object.entries(keys).map(([k, v]) => [k, v ? `${"•".repeat(Math.min(20, Math.max(0, v.length - 4)))}${v.slice(-4)}` : ""]),
+      Object.entries(keys).map(([k, v]) => {
+        if (k === "openrouter_model") return [k, v ?? ""];
+        return [k, v ? `${"•".repeat(Math.min(20, Math.max(0, v.length - 4)))}${v.slice(-4)}` : ""];
+      }),
     ) as ByoKeys;
     return {
       plan: row.plan as "free" | "pro",
       keys: masked,
-      hasAnyKey: Object.values(keys).some((v) => v && v.length > 0),
+      hasAnyKey: Object.entries(keys).some(([k, v]) => k !== "openrouter_model" && v && v.length > 0),
       quota: computeQuota(row),
     };
   });
@@ -79,7 +84,7 @@ export async function consumeQuotaOrThrow(supabase: any, userId: string) {
   const row = await ensureRow(supabase, userId);
   if (row.plan === "pro") return;
   const keys = ByoKeysSchema.parse(row.byo_keys ?? {});
-  const hasKey = Object.values(keys).some((v) => v && v.length > 0);
+  const hasKey = Object.entries(keys).some(([k, v]) => k !== "openrouter_model" && v && v.length > 0);
   if (!hasKey) {
     throw new Error("byo_key_required");
   }

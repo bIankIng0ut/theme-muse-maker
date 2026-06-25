@@ -14,18 +14,22 @@ type Form = {
   openai: string;
   anthropic: string;
   gemini: string;
+  openrouter: string;
+  openrouter_model: string;
   scrapingant: string;
   hibp: string;
   serpapi: string;
 };
 
-const KEYS: { id: keyof Form; label: string; hint: string }[] = [
-  { id: "openai", label: "OpenAI", hint: "sk-..." },
-  { id: "anthropic", label: "Anthropic", hint: "sk-ant-..." },
-  { id: "gemini", label: "Google Gemini", hint: "AIza..." },
-  { id: "scrapingant", label: "ScrapingAnt", hint: "scraper key" },
-  { id: "hibp", label: "HaveIBeenPwned", hint: "hibp key" },
-  { id: "serpapi", label: "SerpAPI", hint: "serp key" },
+const KEYS: { id: keyof Form; label: string; hint: string; secret?: boolean }[] = [
+  { id: "openrouter", label: "OpenRouter", hint: "sk-or-v1-...", secret: true },
+  { id: "openrouter_model", label: "OpenRouter Model", hint: "anthropic/claude-3.5-sonnet" },
+  { id: "openai", label: "OpenAI", hint: "sk-...", secret: true },
+  { id: "anthropic", label: "Anthropic", hint: "sk-ant-...", secret: true },
+  { id: "gemini", label: "Google Gemini", hint: "AIza...", secret: true },
+  { id: "scrapingant", label: "ScrapingAnt", hint: "scraper key", secret: true },
+  { id: "hibp", label: "HaveIBeenPwned", hint: "hibp key", secret: true },
+  { id: "serpapi", label: "SerpAPI", hint: "serp key", secret: true },
 ];
 
 function SettingsPage() {
@@ -37,6 +41,8 @@ function SettingsPage() {
     openai: "",
     anthropic: "",
     gemini: "",
+    openrouter: "",
+    openrouter_model: "",
     scrapingant: "",
     hibp: "",
     serpapi: "",
@@ -133,7 +139,7 @@ function SettingsPage() {
             <label key={k.id} className="block">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">{k.label}</span>
               <input
-                type="password"
+                type={k.secret ? "password" : "text"}
                 autoComplete="off"
                 value={form[k.id] ?? ""}
                 placeholder={k.hint}

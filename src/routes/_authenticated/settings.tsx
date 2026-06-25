@@ -139,7 +139,7 @@ function SettingsPage() {
             <label key={k.id} className="block">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">{k.label}</span>
               <input
-                type="password"
+                type={k.secret ? "password" : "text"}
                 autoComplete="off"
                 value={form[k.id] ?? ""}
                 placeholder={k.hint}

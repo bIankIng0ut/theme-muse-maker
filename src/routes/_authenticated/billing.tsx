@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getSettings } from "@/lib/settings.functions";
@@ -76,10 +76,11 @@ function BillingPage() {
   const get = useServerFn(getSettings);
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get() });
   const plan = (q.data?.plan ?? "free") as "free" | "pro" | "ultra";
+  const navigate = useNavigate();
 
   const handleSelect = (tier: Tier) => {
-    if (tier.id === "free" && plan === "free") {
-      toast.info("You're on the Operator tier.");
+    if (tier.id === "free") {
+      navigate({ to: "/keys" });
       return;
     }
     if (tier.id === "enterprise") {

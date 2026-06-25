@@ -33,40 +33,46 @@
   --color-warning: var(--warning);
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
+  --color-violet: var(--violet);
+  --color-pink: var(--pink);
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.04 0 0);
-  --foreground: oklch(0.98 0 0);
-  --surface: oklch(0.10 0 0 / 0.6);
-  --surface-elevated: oklch(0.14 0 0 / 0.8);
-  --card: oklch(0.08 0 0 / 0.7);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.08 0 0 / 0.95);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.98 0 0);
-  --primary-foreground: oklch(0.04 0 0);
-  --secondary: oklch(0.16 0 0);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.14 0 0 / 0.6);
-  --muted-foreground: oklch(0.62 0 0);
-  --accent: oklch(0.20 0 0);
-  --accent-foreground: oklch(0.98 0 0);
+  --radius: 1rem;
+  /* Deep near-black with a faint violet undertone (stolen.tax vibe) */
+  --background: oklch(0.10 0.02 290);
+  --foreground: oklch(0.98 0.005 280);
+  --surface: oklch(0.14 0.03 290 / 0.55);
+  --surface-elevated: oklch(0.18 0.04 290 / 0.7);
+  --card: oklch(0.15 0.035 290 / 0.55);
+  --card-foreground: oklch(0.98 0.005 280);
+  --popover: oklch(0.12 0.03 290 / 0.95);
+  --popover-foreground: oklch(0.98 0.005 280);
+  /* Violet primary from the second screenshot */
+  --primary: oklch(0.70 0.21 295);
+  --primary-foreground: oklch(0.10 0.02 290);
+  --secondary: oklch(0.20 0.04 290);
+  --secondary-foreground: oklch(0.98 0.005 280);
+  --muted: oklch(0.16 0.03 290 / 0.6);
+  --muted-foreground: oklch(0.66 0.02 285);
+  --accent: oklch(0.24 0.06 295);
+  --accent-foreground: oklch(0.98 0.005 280);
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.74 0.18 155);
   --warning: oklch(0.82 0.16 80);
-  --border: oklch(1 0 0 / 0.08);
-  --input: oklch(1 0 0 / 0.06);
-  --ring: oklch(0.98 0 0 / 0.4);
+  --border: oklch(0.85 0.05 295 / 0.10);
+  --input: oklch(0.85 0.05 295 / 0.08);
+  --ring: oklch(0.72 0.20 300 / 0.6);
+  --violet: oklch(0.70 0.21 295);
+  --pink: oklch(0.78 0.18 350);
 }
 
 .dark {
-  --background: oklch(0.04 0 0);
-  --foreground: oklch(0.98 0 0);
+  --background: oklch(0.10 0.02 290);
+  --foreground: oklch(0.98 0.005 280);
 }
 
 @layer base {
@@ -88,7 +94,7 @@
     font-weight: 700;
   }
   ::selection {
-    background-color: oklch(1 0 0 / 0.18);
+    background-color: oklch(0.70 0.21 295 / 0.35);
   }
 }
 
@@ -101,11 +107,35 @@
       radial-gradient(oklch(1 0 0 / 0.4) 1px, transparent 1px);
     background-size: 3px 3px;
   }
+  /* Glassmorphic card — second screenshot style */
   .glass {
-    background: oklch(0.08 0 0 / 0.6);
-    backdrop-filter: saturate(140%) blur(20px);
-    -webkit-backdrop-filter: saturate(140%) blur(20px);
-    border: 1px solid oklch(1 0 0 / 0.08);
+    background: linear-gradient(
+      135deg,
+      oklch(0.22 0.06 295 / 0.45) 0%,
+      oklch(0.12 0.03 290 / 0.55) 100%
+    );
+    backdrop-filter: saturate(160%) blur(24px);
+    -webkit-backdrop-filter: saturate(160%) blur(24px);
+    border: 1px solid oklch(0.85 0.05 295 / 0.12);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.06),
+      0 30px 60px -30px oklch(0.05 0.02 290 / 0.8);
+  }
+  .glow-violet {
+    box-shadow:
+      0 0 0 1px oklch(0.70 0.21 295 / 0.35),
+      0 0 40px -10px oklch(0.70 0.21 295 / 0.6);
+  }
+  .glow-pink {
+    box-shadow:
+      0 0 0 1px oklch(0.78 0.18 350 / 0.35),
+      0 0 40px -10px oklch(0.78 0.18 350 / 0.55);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, oklch(0.95 0.02 290), oklch(0.78 0.18 350));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   .animate-spot-drift { animation: spot-drift 18s ease-in-out infinite; }
   .animate-spot-drift-2 { animation: spot-drift-2 26s ease-in-out infinite; }
@@ -114,18 +144,18 @@
     animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   .text-stroke {
-    -webkit-text-stroke: 1px oklch(1 0 0 / 0.5);
+    -webkit-text-stroke: 1px oklch(0.85 0.05 295 / 0.5);
     color: transparent;
   }
 }
 
 @keyframes spot-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.7; }
-  50% { transform: translate(40px, 30px) scale(1.08); opacity: 0.9; }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.75; }
+  50% { transform: translate(40px, 30px) scale(1.08); opacity: 0.95; }
 }
 @keyframes spot-drift-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
-  50% { transform: translate(-50px, 40px) scale(1.1); opacity: 0.5; }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.45; }
+  50% { transform: translate(-50px, 40px) scale(1.1); opacity: 0.65; }
 }
 @keyframes marquee {
   0% { transform: translateX(0); }

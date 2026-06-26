@@ -57,6 +57,53 @@ function InvestigatePage() {
   const { investigation, findings, steps, report } = q.data;
   const live = ["queued", "running", "filtering", "reporting"].includes(investigation.status);
 
+  const STAGE_BASE: Record<string, number> = {
+    queued: 2,
+    running: 15,
+    filtering: 60,
+    reporting: 80,
+    done: 100,
+    error: 100,
+  };
+  const STAGE_CAP: Record<string, number> = {
+    queued: 14,
+    running: 59,
+    filtering: 79,
+    reporting: 98,
+    done: 100,
+    error: 100,
+  };
+  const targetPct = useMemo(() => {
+    const base = STAGE_BASE[investigation.status] ?? 0;
+    const cap = STAGE_CAP[investigation.status] ?? 100;
+    // Within-stage growth driven by step count (diminishing returns)
+    const span = cap - base;
+    const grow = span * (1 - Math.exp(-steps.length / 4));
+    return Math.min(cap, Math.round(base + grow));
+  }, [investigation.status, steps.length]);
+
+  // Smoothly animate displayed % toward target, with a slow creep while live
+  const [displayPct, setDisplayPct] = useState(targetPct);
+  useEffect(() => {
+    let raf: number;
+    const tick = () => {
+      setDisplayPct((cur) => {
+        if (cur < targetPct) return Math.min(targetPct, cur + Math.max(0.3, (targetPct - cur) * 0.08));
+        if (live && cur < (STAGE_CAP[investigation.status] ?? 100)) {
+          return Math.min(STAGE_CAP[investigation.status] ?? 100, cur + 0.05);
+        }
+        return cur;
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [targetPct, live, investigation.status]);
+
+  const pct = Math.round(displayPct);
+
+
+
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4 flex-wrap">

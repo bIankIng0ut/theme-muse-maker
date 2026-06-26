@@ -131,6 +131,32 @@ function InvestigatePage() {
         </div>
       </header>
 
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <div className="flex items-center justify-between mb-2 text-[10px] font-mono uppercase tracking-wider">
+          <span className="text-muted-foreground">
+            {investigation.status === "done"
+              ? "Investigation complete"
+              : investigation.status === "error"
+                ? "Run halted"
+                : investigation.status === "queued"
+                  ? "Queued — warming up agent"
+                  : investigation.status === "running"
+                    ? "Running — enumerating sources"
+                    : investigation.status === "filtering"
+                      ? "Filtering — scoring findings"
+                      : "Reporting — compiling dossier"}
+          </span>
+          <span className="text-primary tabular-nums">{pct}%</span>
+        </div>
+        <Progress value={pct} className={investigation.status === "error" ? "[&>div]:bg-destructive" : ""} />
+        {live && (
+          <div className="mt-2 text-[10px] font-mono text-muted-foreground">
+            Live progress · this can take a few minutes depending on options.
+          </div>
+        )}
+      </div>
+
+
       {investigation.error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs font-mono text-destructive">
           {investigation.error}

@@ -22,19 +22,25 @@ function LandingPage() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-primary/15 blur-[140px]" />
       </div>
 
-      <header className="flex items-center justify-between px-6 md:px-10 py-5">
-        <div className="flex items-center gap-2 font-mono text-sm tracking-tight">
+      <header className="flex items-center justify-between gap-4 px-6 md:px-10 py-5">
+        <div className="flex items-center gap-2 font-mono text-sm tracking-tight shrink-0">
           <Radar className="h-4 w-4 text-primary" />
           <span className="font-bold tracking-widest">VANTAGE</span>
         </div>
-        <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
+        <nav className="hidden lg:flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition">Features</a>
           <Link to="/billing" className="hover:text-foreground transition">Pricing</Link>
-          <a href={DISCORD_INVITE} target="_blank" rel="noreferrer" className="hover:text-foreground transition inline-flex items-center gap-1.5">
-            <DiscordIcon className="h-3.5 w-3.5" /> Discord
-          </a>
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={DISCORD_INVITE}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Discord"
+            className="rounded-full p-2 border border-border bg-surface/60 hover:bg-surface-elevated transition inline-flex items-center justify-center"
+          >
+            <DiscordIcon className="h-4 w-4" />
+          </a>
           <Link
             to="/auth"
             className="rounded-full px-4 py-2 text-sm border border-border bg-surface/60 hover:bg-surface-elevated transition"
@@ -49,6 +55,30 @@ function LandingPage() {
           <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
           Autonomous OSINT · Multi-agent runtime
         </div>
+        <h1 className="font-display font-black text-[clamp(3rem,12vw,9rem)] leading-[0.9] tracking-[-0.05em] animate-fade-in">
+          Hunt with <span className="bg-gradient-to-br from-primary via-pink to-primary bg-clip-text text-transparent">Vantage</span>
+        </h1>
+        <p className="mt-8 max-w-xl text-muted-foreground text-base md:text-lg leading-relaxed">
+          Drop in an email, handle, or phone — Vantage spins up a swarm of agents,
+          cross-references 5,000+ surfaces, and renders a defensible identity graph
+          you can act on.
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row items-center gap-4">
+          <Link
+            to="/billing"
+            className="rounded-full inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground text-base font-semibold hover:opacity-90 transition shadow-lg shadow-primary/30"
+          >
+            <Crosshair className="h-4 w-4" />
+            Start Hunting
+          </Link>
+          <Link
+            to="/billing"
+            className="rounded-full inline-flex items-center gap-2 px-7 py-3.5 border border-border bg-surface/60 text-base font-semibold hover:bg-surface-elevated transition"
+          >
+            Plans
+          </Link>
+        </div>
+
         <h1 className="font-display font-black text-[clamp(3rem,12vw,9rem)] leading-[0.9] tracking-[-0.05em] animate-fade-in">
           Hunt with <span className="bg-gradient-to-br from-primary via-pink to-primary bg-clip-text text-transparent">Vantage</span>
         </h1>

@@ -1,74 +1,79 @@
-import { useEffect, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import { markVaultcordVerified } from "@/lib/verify.functions";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
+const VAULTCORD_URL = "https://vaultcord.win/vantage-osint";
 const DISCORD_INVITE = "https://discord.gg/JqvvWBZJKr";
 
-export function DiscordGate({ userId, children }: { userId: string; children: ReactNode }) {
+export function DiscordGate({ userId: _userId, children }: { userId: string; children: ReactNode }) {
   const get = useServerFn(getMyProfile);
-  const q = useQuery({ queryKey: ["my-profile"], queryFn: () => get(), refetchOnWindowFocus: true });
-  const search = useSearch({ strict: false }) as { discord?: string };
-  const navigate = useNavigate();
+  const mark = useServerFn(markVaultcordVerified);
+  const qc = useQueryClient();
+  const [opened, setOpened] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!search?.discord) return;
-    const map: Record<string, { type: "success" | "error"; msg: string }> = {
-      verified: { type: "success", msg: "Discord verified — welcome." },
-      not_member: { type: "error", msg: "You're not in our Discord server. Join, then re-verify." },
-      token_failed: { type: "error", msg: "Discord token exchange failed." },
-      lookup_failed: { type: "error", msg: "Could not read your Discord profile." },
-      save_failed: { type: "error", msg: "Could not save verification." },
-    };
-    const m = map[search.discord];
-    if (m) (m.type === "success" ? toast.success : toast.error)(m.msg);
-    navigate({ to: ".", search: {}, replace: true });
-    q.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search?.discord]);
+  const q = useQuery({ queryKey: ["my-profile"], queryFn: () => get(), refetchOnWindowFocus: true });
 
   if (q.isLoading) {
     return <div className="p-8 text-xs font-mono text-muted-foreground">Loading...</div>;
   }
-  const verified = !!q.data?.discord.verifiedAt;
-  if (verified) return <>{children}</>;
+  if (q.data?.discord.verifiedAt) return <>{children}</>;
 
-  const startUrl = `/api/public/discord/start?u=${encodeURIComponent(userId)}`;
+  async function confirmVerified() {
+    try {
+      setSubmitting(true);
+      await mark();
+      toast.success("Verification confirmed — welcome to Vantage.");
+      await qc.invalidateQueries({ queryKey: ["my-profile"] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not confirm verification";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 animate-fade-in">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-8 text-center">
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary">Verification required</div>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">Join Discord to unlock Vantage</h1>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight">Verify with Vaultcord to unlock Vantage</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          To prevent abuse, every operator must be a verified member of the Vantage Discord
-          server. Step 1: join. Step 2: verify with Discord — we'll confirm your membership
-          and unlock the workspace.
+          To prevent abuse, every operator must complete a one-time Vaultcord check.
+          Open the link, finish verification, then return here and confirm — we'll
+          unlock the workspace immediately.
         </p>
 
         <div className="mt-6 grid gap-3">
           <a
-            href={DISCORD_INVITE}
+            href={VAULTCORD_URL}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full border border-border bg-surface-elevated px-5 py-3 text-sm hover:border-foreground/40 transition inline-flex items-center justify-center gap-2"
-          >
-            <DiscordIcon className="h-4 w-4" />
-            Step 1 — Join the Vantage Discord
-          </a>
-          <a
-            href={startUrl}
+            onClick={() => setOpened(true)}
             className="rounded-full bg-primary text-primary-foreground px-5 py-3 text-sm font-medium hover:opacity-90 transition inline-flex items-center justify-center gap-2"
           >
-            <DiscordIcon className="h-4 w-4" />
-            Step 2 — Verify with Discord
+            Step 1 — Open Vaultcord verification
           </a>
+          <button
+            type="button"
+            disabled={!opened || submitting}
+            onClick={confirmVerified}
+            className="rounded-full border border-border bg-surface-elevated px-5 py-3 text-sm hover:border-foreground/40 transition inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Step 2 — I've completed verification
+          </button>
         </div>
 
         <p className="mt-5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          Already joined? Click verify — we'll check membership and let you in.
+          Trouble?{" "}
+          <a className="text-foreground hover:underline" href={DISCORD_INVITE} target="_blank" rel="noreferrer">
+            Ask in Discord
+          </a>
         </p>
       </div>
     </div>

@@ -79,29 +79,7 @@ function LandingPage() {
           </Link>
         </div>
 
-        <h1 className="font-display font-black text-[clamp(3rem,12vw,9rem)] leading-[0.9] tracking-[-0.05em] animate-fade-in">
-          Hunt with <span className="bg-gradient-to-br from-primary via-pink to-primary bg-clip-text text-transparent">Vantage</span>
-        </h1>
-        <p className="mt-8 max-w-xl text-muted-foreground text-base md:text-lg leading-relaxed">
-          Drop in an email, handle, or phone — Vantage spins up a swarm of agents,
-          cross-references 5,000+ surfaces, and renders a defensible identity graph
-          you can act on.
-        </p>
-        <div className="mt-10 flex flex-col sm:flex-row items-center gap-4">
-          <Link
-            to="/billing"
-            className="rounded-full inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground text-base font-semibold hover:opacity-90 transition shadow-lg shadow-primary/30"
-          >
-            <Crosshair className="h-4 w-4" />
-            Start Hunting
-          </Link>
-          <Link
-            to="/auth"
-            className="rounded-full inline-flex items-center gap-2 px-7 py-3.5 border border-border bg-surface/60 text-sm hover:bg-surface-elevated transition"
-          >
-            I have an access key
-          </Link>
-        </div>
+
 
         <div id="features" className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-3 max-w-4xl w-full">
           {[

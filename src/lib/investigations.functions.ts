@@ -56,7 +56,6 @@ export const tickInvestigation = createServerFn({ method: "POST" })
     return { status: out.status as string };
   });
 
-const IdInput = z.object({ id: z.string().uuid() });
 
 export const getInvestigation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

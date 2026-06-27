@@ -7,6 +7,8 @@ import {
 import { consumeQuotaOrThrow } from "@/lib/settings.functions";
 import { z } from "zod";
 
+const IdInput = z.object({ id: z.string().uuid() });
+
 export const createInvestigation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InvestigationCreateSchema.parse(data))

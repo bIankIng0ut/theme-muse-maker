@@ -29,12 +29,29 @@ export const createInvestigation = createServerFn({ method: "POST" })
 
     if (error || !row) throw new Error(error?.message ?? "insert_failed");
 
-    const { runInvestigation } = await import("@/lib/agent/runner.server");
-    void runInvestigation(row.id, userId).catch((err) => {
-      console.error("runner_unhandled", err instanceof Error ? err.message : err);
-    });
-
+    // Runner is driven by tickInvestigation from the client poll loop —
+    // serverless workers kill background promises after the response returns.
     return { id: row.id, status: row.status };
+  });
+
+export const tickInvestigation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => IdInput.parse(data))
+  .handler(async ({ data, context }) => {
+    // Verify ownership through RLS before advancing.
+    const { data: inv, error } = await context.supabase
+      .from("investigations")
+      .select("id, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!inv) throw new Error("not_found");
+    if (inv.status === "done" || inv.status === "error") {
+      return { status: inv.status as string };
+    }
+    const { tickInvestigationRunner } = await import("@/lib/agent/runner.server");
+    const out = await tickInvestigationRunner(data.id);
+    return { status: out.status as string };
   });
 
 const IdInput = z.object({ id: z.string().uuid() });

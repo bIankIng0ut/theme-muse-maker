@@ -169,17 +169,20 @@ function InvestigatePage() {
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between mb-2 text-[10px] font-mono uppercase tracking-wider">
           <span className="text-muted-foreground">
-            {investigation.status === "done"
-              ? "Investigation complete"
-              : investigation.status === "error"
-                ? "Run halted"
-                : investigation.status === "queued"
-                  ? "Queued — warming up agent"
-                  : investigation.status === "running"
-                    ? "Running — enumerating sources"
-                    : investigation.status === "filtering"
-                      ? "Filtering — scoring findings"
-                      : "Reporting — compiling dossier"}
+            {(() => {
+              const labels: Record<string, string> = {
+                done: "Investigation complete",
+                error: "Run halted",
+                queued: "Queued — warming up agent",
+                triage: "Triage — classifying target",
+                enumerate: "Enumerating sources",
+                evidence: "Collecting evidence",
+                dorks: "Generating intelligence queries",
+                filter: "Filtering — scoring findings",
+                report: "Compiling dossier",
+              };
+              return labels[investigation.status] ?? investigation.status;
+            })()}
           </span>
           <span className="text-primary tabular-nums">{pct}%</span>
         </div>

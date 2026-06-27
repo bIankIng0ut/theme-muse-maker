@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getInvestigation } from "@/lib/investigations.functions";
+import { getInvestigation, tickInvestigation } from "@/lib/investigations.functions";
 import { StatusBadge } from "@/components/vantage/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Terminal, ExternalLink, FileText } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 

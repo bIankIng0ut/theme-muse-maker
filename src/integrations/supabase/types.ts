@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_key_uses: {
+        Row: {
+          id: string
+          ip_hash: string
+          key_id: string
+          used_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          ip_hash: string
+          key_id: string
+          used_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          ip_hash?: string
+          key_id?: string
+          used_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_key_uses_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "access_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       access_keys: {
         Row: {
           created_at: string
@@ -226,7 +258,6 @@ export type Database = {
       }
       user_settings: {
         Row: {
-          byo_keys: Json
           created_at: string
           discord_id: string | null
           discord_username: string | null
@@ -238,7 +269,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          byo_keys?: Json
           created_at?: string
           discord_id?: string | null
           discord_username?: string | null
@@ -250,7 +280,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          byo_keys?: Json
           created_at?: string
           discord_id?: string | null
           discord_username?: string | null

@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/investigate/$id")({
 function InvestigatePage() {
   const { id } = Route.useParams();
   const get = useServerFn(getInvestigation);
+  const tick = useServerFn(tickInvestigation);
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["investigation", id],
@@ -47,6 +48,33 @@ function InvestigatePage() {
     };
   }, [id, qc]);
 
+  // Drive the runner forward: one phase per tick. Each tick is a short
+  // request — the worker doesn't time out, and progress is incremental.
+  const tickingRef = useRef(false);
+  const status = q.data?.investigation.status as string | undefined;
+  useEffect(() => {
+    if (!status || status === "done" || status === "error") return;
+    let cancelled = false;
+    const loop = async () => {
+      if (cancelled || tickingRef.current) return;
+      tickingRef.current = true;
+      try {
+        await tick({ data: { id } });
+        qc.invalidateQueries({ queryKey: ["investigation", id] });
+      } catch {
+        // swallow; the next tick will retry, or we'll surface via status=error
+      } finally {
+        tickingRef.current = false;
+      }
+    };
+    void loop();
+    const interval = setInterval(loop, 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [status, id, tick, qc]);
+
   if (q.isLoading) {
     return <div className="text-sm text-muted-foreground font-mono">Loading...</div>;
   }
@@ -55,21 +83,28 @@ function InvestigatePage() {
   }
 
   const { investigation, findings, steps, report } = q.data;
-  const live = ["queued", "running", "filtering", "reporting"].includes(investigation.status);
+  const TERMINAL = new Set(["done", "error"]);
+  const live = !TERMINAL.has(investigation.status);
 
   const STAGE_BASE: Record<string, number> = {
     queued: 2,
-    running: 15,
-    filtering: 60,
-    reporting: 80,
+    triage: 12,
+    enumerate: 28,
+    evidence: 46,
+    dorks: 62,
+    filter: 76,
+    report: 88,
     done: 100,
     error: 100,
   };
   const STAGE_CAP: Record<string, number> = {
-    queued: 14,
-    running: 59,
-    filtering: 79,
-    reporting: 98,
+    queued: 11,
+    triage: 27,
+    enumerate: 45,
+    evidence: 61,
+    dorks: 75,
+    filter: 87,
+    report: 99,
     done: 100,
     error: 100,
   };

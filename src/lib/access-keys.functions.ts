@@ -74,6 +74,7 @@ export const revokeAccessKey = createServerFn({ method: "POST" })
 export const loginWithAccessKey = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ key: z.string().trim().min(10).max(120) }).parse(d))
   .handler(async ({ data }) => {
+    const { getRequestIP, getRequestHeader } = await import("@tanstack/react-start/server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key_hash = await sha256(data.key);
     const { data: row, error } = await supabaseAdmin
@@ -83,8 +84,42 @@ export const loginWithAccessKey = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Invalid access key");
-    if (row.revoked_at) throw new Error("This key has been revoked");
+    if (row.revoked_at) {
+      throw new Error(
+        "This key has been auto-blocked due to suspicious activity. Open a support ticket in the Vantage OSINT Discord server with proof of ownership.",
+      );
+    }
     if (new Date(row.expires_at).getTime() < Date.now()) throw new Error("This key has expired");
+
+    // IP-abuse detection: 3+ distinct IPs in the last 60 minutes → auto-revoke.
+    const rawIp = (() => {
+      try { return getRequestIP({ xForwardedFor: true }) ?? "unknown"; } catch { return "unknown"; }
+    })();
+    const ip_hash = await sha256(rawIp);
+    const user_agent = (() => {
+      try { return (getRequestHeader("user-agent") ?? "").slice(0, 256) || null; } catch { return null; }
+    })();
+    await supabaseAdmin.from("access_key_uses").insert({
+      key_id: row.id,
+      ip_hash,
+      user_agent,
+    });
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recent } = await supabaseAdmin
+      .from("access_key_uses")
+      .select("ip_hash")
+      .eq("key_id", row.id)
+      .gte("used_at", oneHourAgo);
+    const distinct = new Set((recent ?? []).map((r) => r.ip_hash));
+    if (distinct.size >= 3) {
+      await supabaseAdmin
+        .from("access_keys")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("id", row.id);
+      throw new Error(
+        "Key auto-blocked: used from 3+ different IPs in the last hour. If this was you (VPN, mobile network), open a support ticket in the Vantage OSINT Discord with proof of ownership.",
+      );
+    }
 
     const userRes = await supabaseAdmin.auth.admin.getUserById(row.user_id);
     if (userRes.error || !userRes.data.user?.email) throw new Error("User not available");

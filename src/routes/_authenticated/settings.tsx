@@ -1,65 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSettings, updateSettings } from "@/lib/settings.functions";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getSettings } from "@/lib/settings.functions";
 import { toast } from "sonner";
-import { KeyRound, Sparkles, Moon, Check } from "lucide-react";
+import { Sparkles, Moon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-type Form = {
-  openai: string;
-  anthropic: string;
-  gemini: string;
-  openrouter: string;
-  openrouter_model: string;
-  scrapingant: string;
-  hibp: string;
-  serpapi: string;
-};
-
-const KEYS: { id: keyof Form; label: string; hint: string; secret?: boolean }[] = [
-  { id: "openrouter", label: "OpenRouter", hint: "sk-or-v1-...", secret: true },
-  { id: "openrouter_model", label: "OpenRouter Model", hint: "anthropic/claude-3.5-sonnet" },
-  { id: "openai", label: "OpenAI", hint: "sk-...", secret: true },
-  { id: "anthropic", label: "Anthropic", hint: "sk-ant-...", secret: true },
-  { id: "gemini", label: "Google Gemini", hint: "AIza...", secret: true },
-  { id: "scrapingant", label: "ScrapingAnt", hint: "scraper key", secret: true },
-  { id: "hibp", label: "HaveIBeenPwned", hint: "hibp key", secret: true },
-  { id: "serpapi", label: "SerpAPI", hint: "serp key", secret: true },
-];
-
 function SettingsPage() {
   const get = useServerFn(getSettings);
-  const upd = useServerFn(updateSettings);
-  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["settings"], queryFn: () => get() });
-  const [form, setForm] = useState<Form>({
-    openai: "",
-    anthropic: "",
-    gemini: "",
-    openrouter: "",
-    openrouter_model: "",
-    scrapingant: "",
-    hibp: "",
-    serpapi: "",
-  });
-
-  useEffect(() => {
-    if (q.data?.keys) setForm(q.data.keys as Form);
-  }, [q.data]);
-
-  const m = useMutation({
-    mutationFn: (keys: Partial<Form>) => upd({ data: { keys } }),
-    onSuccess: () => {
-      toast.success("Settings saved");
-      qc.invalidateQueries({ queryKey: ["settings"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const plan = q.data?.plan ?? "free";
   const quota = q.data?.quota;
@@ -70,7 +22,7 @@ function SettingsPage() {
       <div>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Profile</div>
         <h1 className="text-2xl font-semibold mt-0.5 tracking-tight">Settings</h1>
-        <p className="text-xs text-muted-foreground mt-1">Plan, credentials, and nightly quota.</p>
+        <p className="text-xs text-muted-foreground mt-1">Plan and daily quota. Vantage AI is built-in — no API keys to manage.</p>
       </div>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -83,10 +35,10 @@ function SettingsPage() {
               <div className="text-2xl font-semibold tracking-tight capitalize">{plan}</div>
               <div className="text-xs text-muted-foreground mt-1 max-w-xs">
                 {plan === "ultra"
-                  ? "Ultra Pro: unlimited investigations, premium hosted Vantage AI (Gemini 2.5 Pro), no rate caps."
+                  ? "Ultra Pro: unlimited investigations, no rate caps."
                   : plan === "pro"
-                    ? "Hosted Vantage AI included. Unlimited investigations."
-                    : "Free tier: bring your own LLM key. Hosted AI is locked — upgrade for full agent reasoning."}
+                    ? "Pro: unlimited investigations powered by Vantage AI."
+                    : "Free tier: limited daily investigations. Upgrade to Pro for unlimited usage."}
               </div>
             </div>
             {plan === "free" && (
@@ -102,7 +54,7 @@ function SettingsPage() {
 
         <div className="glass rounded-2xl p-5 animate-fade-up" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-            <Moon className="h-3.5 w-3.5" /> Nightly quota
+            <Moon className="h-3.5 w-3.5" /> Daily quota
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums">{quota?.used ?? 0}</span>
@@ -117,39 +69,6 @@ function SettingsPage() {
           <div className="mt-2 text-[10px] font-mono text-muted-foreground">
             Resets {quota ? new Date(quota.resetsAt).toLocaleString() : "—"}
           </div>
-        </div>
-      </section>
-
-      <section className="glass rounded-2xl p-5 animate-fade-up" style={{ animationDelay: "180ms" }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-            <KeyRound className="h-3.5 w-3.5" /> Bring-your-own keys
-          </div>
-          <button
-            onClick={() => m.mutate(form)}
-            disabled={m.isPending}
-            className="rounded-full bg-foreground text-background text-xs px-4 py-1.5 disabled:opacity-50 hover:opacity-90 transition inline-flex items-center gap-1.5"
-          >
-            {m.isPending ? "Saving…" : (<><Check className="h-3 w-3" /> Save</>)}
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
-          Free plan routes calls through Vantage's engine using your keys. Leave a field unchanged to keep the existing value; clear it to remove.
-        </p>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {KEYS.map((k) => (
-            <label key={k.id} className="block">
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">{k.label}</span>
-              <input
-                type={k.secret ? "password" : "text"}
-                autoComplete="off"
-                value={form[k.id] ?? ""}
-                placeholder={k.hint}
-                onChange={(e) => setForm((f) => ({ ...f, [k.id]: e.target.value }))}
-                className="mt-1 w-full rounded-xl bg-background/60 border border-border/60 px-3 py-2 text-sm font-mono outline-none focus:border-foreground/40 transition"
-              />
-            </label>
-          ))}
         </div>
       </section>
     </div>

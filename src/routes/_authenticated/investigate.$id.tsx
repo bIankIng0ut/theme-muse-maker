@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getInvestigation } from "@/lib/investigations.functions";
+import { getInvestigation, tickInvestigation } from "@/lib/investigations.functions";
 import { StatusBadge } from "@/components/vantage/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Terminal, ExternalLink, FileText } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/investigate/$id")({
 function InvestigatePage() {
   const { id } = Route.useParams();
   const get = useServerFn(getInvestigation);
+  const tick = useServerFn(tickInvestigation);
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["investigation", id],
@@ -47,6 +48,33 @@ function InvestigatePage() {
     };
   }, [id, qc]);
 
+  // Drive the runner forward: one phase per tick. Each tick is a short
+  // request — the worker doesn't time out, and progress is incremental.
+  const tickingRef = useRef(false);
+  const status = q.data?.investigation.status as string | undefined;
+  useEffect(() => {
+    if (!status || status === "done" || status === "error") return;
+    let cancelled = false;
+    const loop = async () => {
+      if (cancelled || tickingRef.current) return;
+      tickingRef.current = true;
+      try {
+        await tick({ data: { id } });
+        qc.invalidateQueries({ queryKey: ["investigation", id] });
+      } catch {
+        // swallow; the next tick will retry, or we'll surface via status=error
+      } finally {
+        tickingRef.current = false;
+      }
+    };
+    void loop();
+    const interval = setInterval(loop, 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [status, id, tick, qc]);
+
   if (q.isLoading) {
     return <div className="text-sm text-muted-foreground font-mono">Loading...</div>;
   }
@@ -55,21 +83,28 @@ function InvestigatePage() {
   }
 
   const { investigation, findings, steps, report } = q.data;
-  const live = ["queued", "running", "filtering", "reporting"].includes(investigation.status);
+  const TERMINAL = new Set(["done", "error"]);
+  const live = !TERMINAL.has(investigation.status);
 
   const STAGE_BASE: Record<string, number> = {
     queued: 2,
-    running: 15,
-    filtering: 60,
-    reporting: 80,
+    triage: 12,
+    enumerate: 28,
+    evidence: 46,
+    dorks: 62,
+    filter: 76,
+    report: 88,
     done: 100,
     error: 100,
   };
   const STAGE_CAP: Record<string, number> = {
-    queued: 14,
-    running: 59,
-    filtering: 79,
-    reporting: 98,
+    queued: 11,
+    triage: 27,
+    enumerate: 45,
+    evidence: 61,
+    dorks: 75,
+    filter: 87,
+    report: 99,
     done: 100,
     error: 100,
   };
@@ -134,17 +169,20 @@ function InvestigatePage() {
       <div className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between mb-2 text-[10px] font-mono uppercase tracking-wider">
           <span className="text-muted-foreground">
-            {investigation.status === "done"
-              ? "Investigation complete"
-              : investigation.status === "error"
-                ? "Run halted"
-                : investigation.status === "queued"
-                  ? "Queued — warming up agent"
-                  : investigation.status === "running"
-                    ? "Running — enumerating sources"
-                    : investigation.status === "filtering"
-                      ? "Filtering — scoring findings"
-                      : "Reporting — compiling dossier"}
+            {(() => {
+              const labels: Record<string, string> = {
+                done: "Investigation complete",
+                error: "Run halted",
+                queued: "Queued — warming up agent",
+                triage: "Triage — classifying target",
+                enumerate: "Enumerating sources",
+                evidence: "Collecting evidence",
+                dorks: "Generating intelligence queries",
+                filter: "Filtering — scoring findings",
+                report: "Compiling dossier",
+              };
+              return labels[investigation.status] ?? investigation.status;
+            })()}
           </span>
           <span className="text-primary tabular-nums">{pct}%</span>
         </div>

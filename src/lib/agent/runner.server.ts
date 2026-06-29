@@ -129,17 +129,18 @@ export async function tickInvestigationRunner(
     if (next === "enumerate") {
       await setStatus(investigationId, "enumerate");
       const t = inv.target_type;
-      if (t === "discord") {
+      if (t === "discord_id") {
         await runTool(investigationId, inv.owner_id, "lookup_discord", {
           discord_id: inv.target,
         }, "Enumeration: Discord user lookup");
-      } else if (t === "roblox") {
+      } else if (t === "roblox_id") {
         const asId = /^\d+$/.test(inv.target);
         await runTool(investigationId, inv.owner_id, "lookup_roblox",
           asId ? { roblox_id: Number(inv.target) } : { roblox_username: inv.target },
           "Enumeration: Roblox user lookup",
         );
       } else {
+        // auto / username / email all enumerate by username
         await runTool(investigationId, inv.owner_id, "search_username", {
           username: inv.target,
         }, "Enumeration: scanning username across registered sites");

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { PROFILE_TEMPLATES, isValidUsername } from "./profile-templates.server";
+import { callLlm } from "./llm.server";
 
 export type ToolHandler = (
   input: Record<string, unknown>,
@@ -12,6 +15,212 @@ export type ToolDefinition = {
   handler: ToolHandler;
 };
 
+const UA =
+  "Mozilla/5.0 (compatible; VantageOSINT/1.0; +https://vantage.osint)";
+
+async function fetchWithTimeout(url: string, ms = 8000, init?: RequestInit): Promise<Response> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fetch(url, {
+      ...init,
+      redirect: "follow",
+      signal: ctl.signal,
+      headers: {
+        "User-Agent": UA,
+        Accept: "text/html,application/json,*/*",
+        ...(init?.headers as Record<string, string> | undefined),
+      },
+    });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function insertFinding(args: {
+  investigationId: string;
+  toolName: string;
+  platform?: string | null;
+  url?: string | null;
+  username?: string | null;
+  confidence?: "high" | "medium" | "low";
+  raw?: unknown;
+}) {
+  const { error } = await supabaseAdmin.from("findings").insert({
+    investigation_id: args.investigationId,
+    tool_name: args.toolName,
+    platform: args.platform ?? null,
+    url: args.url ?? null,
+    username: args.username ?? null,
+    confidence: args.confidence ?? "medium",
+    raw_data: (args.raw ?? null) as never,
+  });
+  if (error) console.error("[findings.insert]", error.message);
+}
+
+// --------------------------- handlers ---------------------------
+
+const searchUsernameHandler: ToolHandler = async (input, ctx) => {
+  const username = String(input.username ?? "").trim();
+  if (!isValidUsername(username)) {
+    return { status: "error", note: "invalid_username" };
+  }
+  const max = Math.min(Number(input.max_sites ?? PROFILE_TEMPLATES.length), PROFILE_TEMPLATES.length);
+  const list = PROFILE_TEMPLATES.slice(0, max);
+
+  let hits = 0;
+  await Promise.all(
+    list.map(async (tpl) => {
+      const url = tpl.url.replace("{u}", encodeURIComponent(username));
+      try {
+        const res = await fetchWithTimeout(url, 7000);
+        if (tpl.notFoundStatus?.includes(res.status)) return;
+        if (res.status >= 400) return;
+        if (tpl.notFoundText && tpl.notFoundText.length) {
+          const body = (await res.text()).toLowerCase();
+          if (tpl.notFoundText.some((s) => body.includes(s))) return;
+        }
+        hits++;
+        await insertFinding({
+          investigationId: ctx.investigationId,
+          toolName: "search_username",
+          platform: tpl.platform,
+          url,
+          username,
+          confidence: "medium",
+          raw: { status: res.status },
+        });
+      } catch {
+        /* network error → treat as no hit */
+      }
+    }),
+  );
+
+  return { status: "ok", data: { checked: list.length, hits } };
+};
+
+const scrapeUrlHandler: ToolHandler = async (input, ctx) => {
+  const url = String(input.url ?? "");
+  if (!/^https?:\/\//.test(url)) return { status: "error", note: "invalid_url" };
+  try {
+    const res = await fetchWithTimeout(url, 12000);
+    const text = (await res.text()).slice(0, 4000);
+    const title = /<title[^>]*>([^<]+)<\/title>/i.exec(text)?.[1]?.trim() ?? null;
+    await insertFinding({
+      investigationId: ctx.investigationId,
+      toolName: "scrape_url",
+      url,
+      platform: new URL(url).hostname,
+      confidence: "low",
+      raw: { status: res.status, title, snippet: text.replace(/<[^>]+>/g, " ").slice(0, 500) },
+    });
+    return { status: "ok", data: { status: res.status, title } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "fetch_failed" };
+  }
+};
+
+const lookupRobloxHandler: ToolHandler = async (input, ctx) => {
+  const username = input.roblox_username ? String(input.roblox_username) : null;
+  const userId = input.roblox_id ? Number(input.roblox_id) : null;
+  try {
+    let id = userId;
+    let profile: { id: number; name: string; displayName?: string } | null = null;
+    if (!id && username) {
+      const res = await fetchWithTimeout("https://users.roblox.com/v1/usernames/users", 8000, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+      });
+      const json = (await res.json()) as { data?: Array<{ id: number; name: string; displayName: string }> };
+      if (json.data && json.data[0]) {
+        profile = json.data[0];
+        id = profile.id;
+      }
+    } else if (id) {
+      const res = await fetchWithTimeout(`https://users.roblox.com/v1/users/${id}`, 8000);
+      profile = (await res.json()) as { id: number; name: string; displayName: string };
+    }
+    if (!profile || !id) return { status: "ok", data: { found: false } };
+
+    await insertFinding({
+      investigationId: ctx.investigationId,
+      toolName: "lookup_roblox",
+      platform: "Roblox",
+      url: `https://www.roblox.com/users/${id}/profile`,
+      username: profile.name,
+      confidence: "high",
+      raw: profile,
+    });
+    return { status: "ok", data: { found: true, id, name: profile.name } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "roblox_failed" };
+  }
+};
+
+const lookupDiscordHandler: ToolHandler = async (input, ctx) => {
+  const id = String(input.discord_id ?? "");
+  if (!/^\d{5,30}$/.test(id)) return { status: "error", note: "invalid_discord_id" };
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) {
+    return { status: "not_implemented", note: "DISCORD_BOT_TOKEN not configured" };
+  }
+  try {
+    const res = await fetchWithTimeout(`https://discord.com/api/v10/users/${id}`, 8000, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+    if (res.status === 404) return { status: "ok", data: { found: false } };
+    if (!res.ok) return { status: "error", note: `discord_${res.status}` };
+    const user = (await res.json()) as { id: string; username: string; global_name?: string; avatar?: string };
+    await insertFinding({
+      investigationId: ctx.investigationId,
+      toolName: "lookup_discord",
+      platform: "Discord",
+      url: `https://discord.com/users/${user.id}`,
+      username: user.global_name ?? user.username,
+      confidence: "high",
+      raw: user,
+    });
+    return { status: "ok", data: { found: true, username: user.username } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "discord_failed" };
+  }
+};
+
+const generateDorksHandler: ToolHandler = async (input, ctx) => {
+  const target = String(input.target_name ?? "");
+  if (!target) return { status: "error", note: "missing_target" };
+  try {
+    const r = await callLlm(ctx.ownerId, [
+      {
+        role: "system",
+        content:
+          "You are an OSINT analyst. Output 8 Google dork queries (one per line, no numbering, no commentary) that would surface profiles, leaks, or mentions of the given target. Each query must be a single line of valid Google search syntax.",
+      },
+      { role: "user", content: `Target: ${target}` },
+    ]);
+    const dorks = r.text
+      .split("\n")
+      .map((l) => l.replace(/^[-*\d.\s]+/, "").trim())
+      .filter((l) => l.length > 4 && l.length < 200)
+      .slice(0, 8);
+
+    for (const d of dorks) {
+      await insertFinding({
+        investigationId: ctx.investigationId,
+        toolName: "generate_dorks",
+        platform: "Google Dork",
+        url: `https://www.google.com/search?q=${encodeURIComponent(d)}`,
+        confidence: "low",
+        raw: { query: d },
+      });
+    }
+    return { status: "ok", data: { count: dorks.length, dorks } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "dorks_failed" };
+  }
+};
+
 const notImplemented =
   (name: string): ToolHandler =>
   async () => ({
@@ -22,13 +231,12 @@ const notImplemented =
 export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   search_username: {
     name: "search_username",
-    description:
-      "Enumerate a username across 3000+ sites. Returns found profiles with URLs.",
+    description: "Enumerate a username across known profile sites.",
     inputSchema: z.object({
       username: z.string().min(1),
-      max_sites: z.number().int().min(1).max(5000).default(5000),
+      max_sites: z.number().int().min(1).max(5000).default(PROFILE_TEMPLATES.length),
     }),
-    handler: notImplemented("search_username"),
+    handler: searchUsernameHandler,
   },
   check_breach: {
     name: "check_breach",
@@ -40,7 +248,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
     name: "lookup_discord",
     description: "Look up a Discord user by ID.",
     inputSchema: z.object({ discord_id: z.string().regex(/^\d{5,30}$/) }),
-    handler: notImplemented("lookup_discord"),
+    handler: lookupDiscordHandler,
   },
   lookup_roblox: {
     name: "lookup_roblox",
@@ -49,7 +257,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
       roblox_username: z.string().optional(),
       roblox_id: z.number().int().positive().optional(),
     }),
-    handler: notImplemented("lookup_roblox"),
+    handler: lookupRobloxHandler,
   },
   roblox_to_discord: {
     name: "roblox_to_discord",
@@ -65,13 +273,13 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   },
   scrape_url: {
     name: "scrape_url",
-    description: "Fetch a URL through residential proxies and extract content.",
+    description: "Fetch a URL and extract title + text snippet.",
     inputSchema: z.object({
       url: z.string().url(),
       proxy_country: z.string().default("us"),
-      take_screenshot: z.boolean().default(true),
+      take_screenshot: z.boolean().default(false),
     }),
-    handler: notImplemented("scrape_url"),
+    handler: scrapeUrlHandler,
   },
   generate_dorks: {
     name: "generate_dorks",
@@ -80,7 +288,7 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
       target_name: z.string().min(1),
       known_platforms: z.array(z.string()).optional(),
     }),
-    handler: notImplemented("generate_dorks"),
+    handler: generateDorksHandler,
   },
   execute_dork: {
     name: "execute_dork",

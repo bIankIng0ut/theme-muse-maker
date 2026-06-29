@@ -1,17 +1,33 @@
 // Resume-on-poll investigation runner.
 //
-// The runner is split into one phase per HTTP request. The investigate page
-// polls every ~1s and calls `tickInvestigation`, which advances the row by
-// exactly one phase and returns. This avoids serverless workers being killed
-// mid-run (the original "stuck at 14%" bug).
+// One phase per HTTP request, driven by the client poll on the investigate page.
+// Phase 2 wires real adapters and an LLM-composed dossier built from findings.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getTool, TOOL_REGISTRY } from "./registry.server";
 import { callLlm } from "./llm.server";
 
-type Phase = "queued" | "triage" | "enumerate" | "evidence" | "dorks" | "filter" | "report" | "done" | "error";
+type Phase =
+  | "queued"
+  | "triage"
+  | "enumerate"
+  | "evidence"
+  | "dorks"
+  | "filter"
+  | "report"
+  | "done"
+  | "error";
 
-const PHASE_ORDER: Phase[] = ["queued", "triage", "enumerate", "evidence", "dorks", "filter", "report", "done"];
+const PHASE_ORDER: Phase[] = [
+  "queued",
+  "triage",
+  "enumerate",
+  "evidence",
+  "dorks",
+  "filter",
+  "report",
+  "done",
+];
 
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...data }));
@@ -49,11 +65,7 @@ async function writeStep(
   if (error) log("agent_step_write_error", { investigationId, error: error.message });
 }
 
-async function setStatus(
-  investigationId: string,
-  status: Phase,
-  errMsg?: string,
-) {
+async function setStatus(investigationId: string, status: Phase, errMsg?: string) {
   const patch: { status: string; completed_at?: string; error?: string } = { status };
   if (status === "done" || status === "error") patch.completed_at = new Date().toISOString();
   if (errMsg) patch.error = errMsg;
@@ -75,17 +87,21 @@ async function loadInvestigation(investigationId: string) {
   return data;
 }
 
-/**
- * Advance one phase. Safe to call repeatedly: if the row is already done/error
- * it returns immediately. Returns the new status so the client can stop polling.
- */
-export async function tickInvestigationRunner(investigationId: string): Promise<{ status: Phase }> {
+async function loadFindings(investigationId: string) {
+  const { data } = await supabaseAdmin
+    .from("findings")
+    .select("tool_name, platform, url, username, confidence, raw_data, is_false_positive")
+    .eq("investigation_id", investigationId)
+    .order("created_at", { ascending: true });
+  return data ?? [];
+}
+
+export async function tickInvestigationRunner(
+  investigationId: string,
+): Promise<{ status: Phase }> {
   const inv = await loadInvestigation(investigationId);
   const current = inv.status as Phase;
-
-  if (current === "done" || current === "error") {
-    return { status: current };
-  }
+  if (current === "done" || current === "error") return { status: current };
 
   try {
     const next = nextPhase(current);
@@ -112,19 +128,41 @@ export async function tickInvestigationRunner(investigationId: string): Promise<
 
     if (next === "enumerate") {
       await setStatus(investigationId, "enumerate");
-      await runTool(investigationId, inv.owner_id, "search_username", {
-        username: inv.target,
-        max_sites: 100,
-      }, "Enumeration: scanning username across registered sites");
+      const t = inv.target_type;
+      if (t === "discord") {
+        await runTool(investigationId, inv.owner_id, "lookup_discord", {
+          discord_id: inv.target,
+        }, "Enumeration: Discord user lookup");
+      } else if (t === "roblox") {
+        const asId = /^\d+$/.test(inv.target);
+        await runTool(investigationId, inv.owner_id, "lookup_roblox",
+          asId ? { roblox_id: Number(inv.target) } : { roblox_username: inv.target },
+          "Enumeration: Roblox user lookup",
+        );
+      } else {
+        await runTool(investigationId, inv.owner_id, "search_username", {
+          username: inv.target,
+        }, "Enumeration: scanning username across registered sites");
+      }
       return { status: "enumerate" };
     }
 
     if (next === "evidence") {
       await setStatus(investigationId, "evidence");
-      await runTool(investigationId, inv.owner_id, "scrape_url", {
-        url: "https://example.com",
-        take_screenshot: false,
-      }, "Evidence: fetching confirmed profile pages");
+      const findings = await loadFindings(investigationId);
+      const targets = findings
+        .filter((f) => f.url && f.tool_name !== "scrape_url" && f.tool_name !== "generate_dorks")
+        .slice(0, 5);
+      if (targets.length === 0) {
+        await writeStep(investigationId, "Evidence: no URLs to fetch", "skipped");
+      } else {
+        for (const f of targets) {
+          await runTool(investigationId, inv.owner_id, "scrape_url", {
+            url: f.url,
+            take_screenshot: false,
+          }, `Evidence: scraping ${f.platform ?? f.url}`);
+        }
+      }
       return { status: "evidence" };
     }
 
@@ -138,28 +176,72 @@ export async function tickInvestigationRunner(investigationId: string): Promise<
 
     if (next === "filter") {
       await setStatus(investigationId, "filter");
-      await writeStep(investigationId, "False-positive filter: no findings to score yet", "done");
+      const findings = await loadFindings(investigationId);
+      await writeStep(
+        investigationId,
+        `False-positive filter: ${findings.length} findings retained`,
+        "done",
+      );
       return { status: "filter" };
     }
 
     if (next === "report") {
       await setStatus(investigationId, "report");
-      const summary =
-        "Phase 1 foundation run. OSINT adapters are placeholder stubs; this dossier records the agent pipeline execution only.";
+      const findings = await loadFindings(investigationId);
+
+      // Build a compact findings table the LLM can reason over.
+      const bullets = findings
+        .slice(0, 60)
+        .map((f) => `- [${f.platform ?? f.tool_name}] ${f.username ?? ""} ${f.url ?? ""}`.trim())
+        .join("\n") || "(no findings)";
+
+      let body = "";
+      try {
+        const out = await callLlm(inv.owner_id, [
+          {
+            role: "system",
+            content:
+              "You are Vantage's lead intelligence analyst. Write a concise Markdown dossier from the findings: sections '## Summary', '## Identity Signals', '## Cross-Platform Footprint', '## Recommended Next Steps'. Cite specific platforms and URLs. Do not invent data — if nothing was found in a category, say so plainly.",
+          },
+          {
+            role: "user",
+            content: `Target: ${inv.target} (${inv.target_type})\nFindings (${findings.length}):\n${bullets}`,
+          },
+        ]);
+        body = out.text;
+      } catch (e) {
+        body = `_LLM report skipped: ${e instanceof Error ? e.message : String(e)}_`;
+      }
+
       const markdown =
         `# VANTAGE INTELLIGENCE REPORT\n\n` +
         `**Target:** ${inv.target}\n` +
+        `**Type:** ${inv.target_type}\n` +
         `**Investigation ID:** ${investigationId}\n` +
-        `**Registered tools:** ${Object.keys(TOOL_REGISTRY).length}\n\n` +
-        `## Summary\n${summary}\n\n` +
-        `## Methodology\nAll OSINT tools returned \`not_implemented\`. Real adapters land in Phase 2.\n`;
+        `**Findings:** ${findings.length}\n` +
+        `**Tools available:** ${Object.keys(TOOL_REGISTRY).length}\n\n` +
+        `---\n\n${body}\n\n` +
+        `## Raw Findings\n\n${bullets}\n`;
+
+      const nodes = [
+        { id: "root", label: inv.target, type: "target" },
+        ...findings
+          .filter((f) => f.username || f.url)
+          .slice(0, 20)
+          .map((f, i) => ({
+            id: `n${i}`,
+            label: f.username ?? f.platform ?? f.url ?? "node",
+            type: f.platform ?? "src",
+          })),
+      ];
+      const edges = nodes.slice(1).map((n) => ({ source: "root", target: n.id, label: n.type }));
 
       const { error: reportErr } = await supabaseAdmin.from("reports").upsert(
         {
           investigation_id: investigationId,
           markdown,
-          summary,
-          identity_graph: { nodes: [], edges: [] } as never,
+          summary: body.split("\n").find((l) => l.trim().length > 30)?.slice(0, 280) ?? null,
+          identity_graph: { nodes, edges } as never,
         },
         { onConflict: "investigation_id" },
       );
@@ -170,7 +252,6 @@ export async function tickInvestigationRunner(investigationId: string): Promise<
       return { status: "done" };
     }
 
-    // Shouldn't reach here; mark error to break any polling loop.
     await setStatus(investigationId, "error", `unknown_phase:${current}`);
     return { status: "error" };
   } catch (err) {
@@ -202,17 +283,17 @@ async function runTool(
   }
   try {
     const out = await tool.handler(input, { investigationId, ownerId });
-    await writeStep(
-      investigationId,
-      out.status === "not_implemented" ? `${toolName}: adapter not configured, skipped` : `${note} ✓`,
-      out.status === "not_implemented" ? "skipped" : "done",
-      toolName,
-      input,
-      out,
-    );
+    const stepStatus =
+      out.status === "not_implemented" ? "skipped" :
+      out.status === "error" ? "error" : "done";
+    const tail =
+      out.status === "not_implemented" ? `${toolName}: ${out.note ?? "adapter not configured"}` :
+      out.status === "error" ? `${toolName}: ${out.note ?? "failed"}` :
+      `${note} ✓`;
+    await writeStep(investigationId, tail, stepStatus, toolName, input, out);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await writeStep(investigationId, `${toolName}: ${msg}`, "error", toolName, input);
-    throw e;
+    // Don't rethrow — phase still advances so progress doesn't stall.
   }
 }

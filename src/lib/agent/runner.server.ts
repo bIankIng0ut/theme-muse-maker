@@ -1,7 +1,8 @@
 // Resume-on-poll investigation runner.
 //
-// One phase per HTTP request, driven by the client poll on the investigate page.
-// Phase 2 wires real adapters and an LLM-composed dossier built from findings.
+// Phase 3 adds:
+//  - a `correlate` phase (cross-platform linking + avatar hashing)
+//  - expanded evidence depth (up to 20 scrapes)
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getTool, TOOL_REGISTRY } from "./registry.server";
@@ -12,6 +13,7 @@ type Phase =
   | "triage"
   | "enumerate"
   | "evidence"
+  | "correlate"
   | "dorks"
   | "filter"
   | "report"
@@ -23,11 +25,14 @@ const PHASE_ORDER: Phase[] = [
   "triage",
   "enumerate",
   "evidence",
+  "correlate",
   "dorks",
   "filter",
   "report",
   "done",
 ];
+
+const EVIDENCE_MAX = 20;
 
 function log(event: string, data: Record<string, unknown>) {
   console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...data }));
@@ -140,10 +145,15 @@ export async function tickInvestigationRunner(
           "Enumeration: Roblox user lookup",
         );
       } else {
-        // auto / username / email all enumerate by username
         await runTool(investigationId, inv.owner_id, "search_username", {
           username: inv.target,
         }, "Enumeration: scanning username across registered sites");
+        // also try Roblox by username for free
+        if (/^[a-zA-Z0-9_]{3,20}$/.test(inv.target)) {
+          await runTool(investigationId, inv.owner_id, "lookup_roblox", {
+            roblox_username: inv.target,
+          }, "Enumeration: Roblox by username");
+        }
       }
       return { status: "enumerate" };
     }
@@ -152,8 +162,8 @@ export async function tickInvestigationRunner(
       await setStatus(investigationId, "evidence");
       const findings = await loadFindings(investigationId);
       const targets = findings
-        .filter((f) => f.url && f.tool_name !== "scrape_url" && f.tool_name !== "generate_dorks")
-        .slice(0, 5);
+        .filter((f) => f.url && f.tool_name !== "scrape_url" && f.tool_name !== "generate_dorks" && f.tool_name !== "hash_avatar")
+        .slice(0, EVIDENCE_MAX);
       if (targets.length === 0) {
         await writeStep(investigationId, "Evidence: no URLs to fetch", "skipped");
       } else {
@@ -165,6 +175,58 @@ export async function tickInvestigationRunner(
         }
       }
       return { status: "evidence" };
+    }
+
+    if (next === "correlate") {
+      await setStatus(investigationId, "correlate");
+      const findings = await loadFindings(investigationId);
+      let ran = 0;
+
+      // Find every Roblox ID we've discovered and try roblox→discord
+      const robloxIds = new Set<number>();
+      for (const f of findings) {
+        const raw = f.raw_data as { robloxId?: number; id?: number } | null;
+        if (f.platform === "Roblox" && raw) {
+          const id = raw.robloxId ?? raw.id;
+          if (typeof id === "number") robloxIds.add(id);
+        }
+      }
+      for (const rid of robloxIds) {
+        await runTool(investigationId, inv.owner_id, "roblox_to_discord",
+          { roblox_id: rid }, `Correlate: Roblox ${rid} → Discord`);
+        ran++;
+      }
+
+      // Find every Discord ID we've discovered and try discord→roblox
+      const discordIds = new Set<string>();
+      for (const f of findings) {
+        const raw = f.raw_data as { id?: string; discordId?: string } | null;
+        if (f.platform === "Discord" && raw?.id && /^\d{5,30}$/.test(raw.id)) {
+          discordIds.add(raw.id);
+        }
+      }
+      for (const did of discordIds) {
+        await runTool(investigationId, inv.owner_id, "discord_to_roblox",
+          { discord_id: did }, `Correlate: Discord ${did} → Roblox`);
+        ran++;
+      }
+
+      // Hash any avatar URLs we picked up
+      const avatars = new Set<string>();
+      for (const f of findings) {
+        const raw = f.raw_data as { avatarUrl?: string } | null;
+        if (raw?.avatarUrl && /^https?:\/\//.test(raw.avatarUrl)) avatars.add(raw.avatarUrl);
+      }
+      for (const url of avatars) {
+        await runTool(investigationId, inv.owner_id, "hash_avatar",
+          { image_url: url }, `Correlate: hashing avatar ${new URL(url).hostname}`);
+        ran++;
+      }
+
+      if (ran === 0) {
+        await writeStep(investigationId, "Correlate: nothing to cross-reference", "skipped");
+      }
+      return { status: "correlate" };
     }
 
     if (next === "dorks") {
@@ -190,9 +252,8 @@ export async function tickInvestigationRunner(
       await setStatus(investigationId, "report");
       const findings = await loadFindings(investigationId);
 
-      // Build a compact findings table the LLM can reason over.
       const bullets = findings
-        .slice(0, 60)
+        .slice(0, 80)
         .map((f) => `- [${f.platform ?? f.tool_name}] ${f.username ?? ""} ${f.url ?? ""}`.trim())
         .join("\n") || "(no findings)";
 
@@ -228,7 +289,7 @@ export async function tickInvestigationRunner(
         { id: "root", label: inv.target, type: "target" },
         ...findings
           .filter((f) => f.username || f.url)
-          .slice(0, 20)
+          .slice(0, 24)
           .map((f, i) => ({
             id: `n${i}`,
             label: f.username ?? f.platform ?? f.url ?? "node",
@@ -295,6 +356,5 @@ async function runTool(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await writeStep(investigationId, `${toolName}: ${msg}`, "error", toolName, input);
-    // Don't rethrow — phase still advances so progress doesn't stall.
   }
 }

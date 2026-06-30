@@ -88,22 +88,24 @@ function InvestigatePage() {
 
   const STAGE_BASE: Record<string, number> = {
     queued: 2,
-    triage: 12,
-    enumerate: 28,
-    evidence: 46,
-    dorks: 62,
-    filter: 76,
-    report: 88,
+    triage: 10,
+    enumerate: 22,
+    evidence: 36,
+    correlate: 52,
+    dorks: 66,
+    filter: 80,
+    report: 90,
     done: 100,
     error: 100,
   };
   const STAGE_CAP: Record<string, number> = {
-    queued: 11,
-    triage: 27,
-    enumerate: 45,
-    evidence: 61,
-    dorks: 75,
-    filter: 87,
+    queued: 9,
+    triage: 21,
+    enumerate: 35,
+    evidence: 51,
+    correlate: 65,
+    dorks: 79,
+    filter: 89,
     report: 99,
     done: 100,
     error: 100,
@@ -111,13 +113,11 @@ function InvestigatePage() {
   const targetPct = useMemo(() => {
     const base = STAGE_BASE[investigation.status] ?? 0;
     const cap = STAGE_CAP[investigation.status] ?? 100;
-    // Within-stage growth driven by step count (diminishing returns)
     const span = cap - base;
     const grow = span * (1 - Math.exp(-steps.length / 4));
     return Math.min(cap, Math.round(base + grow));
   }, [investigation.status, steps.length]);
 
-  // Smoothly animate displayed % toward target, with a slow creep while live
   const [displayPct, setDisplayPct] = useState(targetPct);
   useEffect(() => {
     let raf: number;
@@ -177,6 +177,7 @@ function InvestigatePage() {
                 triage: "Triage — classifying target",
                 enumerate: "Enumerating sources",
                 evidence: "Collecting evidence",
+                correlate: "Correlating identities",
                 dorks: "Generating intelligence queries",
                 filter: "Filtering — scoring findings",
                 report: "Compiling dossier",
@@ -193,6 +194,7 @@ function InvestigatePage() {
           </div>
         )}
       </div>
+
 
 
       {investigation.error && (

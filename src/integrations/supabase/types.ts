@@ -182,6 +182,27 @@ export type Database = {
           },
         ]
       }
+      investigation_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          ip_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       investigations: {
         Row: {
           completed_at: string | null

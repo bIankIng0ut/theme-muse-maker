@@ -15,8 +15,7 @@ export type ToolDefinition = {
   handler: ToolHandler;
 };
 
-const UA =
-  "Mozilla/5.0 (compatible; VantageOSINT/1.0; +https://vantage.osint)";
+const UA = "Mozilla/5.0 (compatible; VantageOSINT/1.0; +https://vantage.osint)";
 
 async function fetchWithTimeout(url: string, ms = 8000, init?: RequestInit): Promise<Response> {
   const ctl = new AbortController();
@@ -58,13 +57,18 @@ async function insertFinding(args: {
   if (error) console.error("[findings.insert]", error.message);
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // --------------------------- handlers ---------------------------
 
 const searchUsernameHandler: ToolHandler = async (input, ctx) => {
   const username = String(input.username ?? "").trim();
-  if (!isValidUsername(username)) {
-    return { status: "error", note: "invalid_username" };
-  }
+  if (!isValidUsername(username)) return { status: "error", note: "invalid_username" };
   const max = Math.min(Number(input.max_sites ?? PROFILE_TEMPLATES.length), PROFILE_TEMPLATES.length);
   const list = PROFILE_TEMPLATES.slice(0, max);
 
@@ -91,11 +95,10 @@ const searchUsernameHandler: ToolHandler = async (input, ctx) => {
           raw: { status: res.status },
         });
       } catch {
-        /* network error → treat as no hit */
+        /* ignore */
       }
     }),
   );
-
   return { status: "ok", data: { checked: list.length, hits } };
 };
 
@@ -125,7 +128,7 @@ const lookupRobloxHandler: ToolHandler = async (input, ctx) => {
   const userId = input.roblox_id ? Number(input.roblox_id) : null;
   try {
     let id = userId;
-    let profile: { id: number; name: string; displayName?: string } | null = null;
+    let profile: { id: number; name: string; displayName?: string; description?: string } | null = null;
     if (!id && username) {
       const res = await fetchWithTimeout("https://users.roblox.com/v1/usernames/users", 8000, {
         method: "POST",
@@ -137,11 +140,25 @@ const lookupRobloxHandler: ToolHandler = async (input, ctx) => {
         profile = json.data[0];
         id = profile.id;
       }
-    } else if (id) {
+    }
+    if (id) {
       const res = await fetchWithTimeout(`https://users.roblox.com/v1/users/${id}`, 8000);
-      profile = (await res.json()) as { id: number; name: string; displayName: string };
+      if (res.ok) profile = (await res.json()) as typeof profile;
     }
     if (!profile || !id) return { status: "ok", data: { found: false } };
+
+    // grab thumbnail too
+    let avatarUrl: string | null = null;
+    try {
+      const tr = await fetchWithTimeout(
+        `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=150x150&format=Png`,
+        6000,
+      );
+      const tj = (await tr.json()) as { data?: Array<{ imageUrl?: string }> };
+      avatarUrl = tj.data?.[0]?.imageUrl ?? null;
+    } catch {
+      /* ignore */
+    }
 
     await insertFinding({
       investigationId: ctx.investigationId,
@@ -150,9 +167,9 @@ const lookupRobloxHandler: ToolHandler = async (input, ctx) => {
       url: `https://www.roblox.com/users/${id}/profile`,
       username: profile.name,
       confidence: "high",
-      raw: profile,
+      raw: { ...profile, avatarUrl, robloxId: id },
     });
-    return { status: "ok", data: { found: true, id, name: profile.name } };
+    return { status: "ok", data: { found: true, id, name: profile.name, avatarUrl } };
   } catch (e) {
     return { status: "error", note: e instanceof Error ? e.message : "roblox_failed" };
   }
@@ -162,16 +179,22 @@ const lookupDiscordHandler: ToolHandler = async (input, ctx) => {
   const id = String(input.discord_id ?? "");
   if (!/^\d{5,30}$/.test(id)) return { status: "error", note: "invalid_discord_id" };
   const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token) {
-    return { status: "not_implemented", note: "DISCORD_BOT_TOKEN not configured" };
-  }
+  if (!token) return { status: "not_implemented", note: "DISCORD_BOT_TOKEN not configured" };
   try {
     const res = await fetchWithTimeout(`https://discord.com/api/v10/users/${id}`, 8000, {
       headers: { Authorization: `Bot ${token}` },
     });
     if (res.status === 404) return { status: "ok", data: { found: false } };
     if (!res.ok) return { status: "error", note: `discord_${res.status}` };
-    const user = (await res.json()) as { id: string; username: string; global_name?: string; avatar?: string };
+    const user = (await res.json()) as {
+      id: string;
+      username: string;
+      global_name?: string;
+      avatar?: string;
+    };
+    const avatarUrl = user.avatar
+      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=256`
+      : null;
     await insertFinding({
       investigationId: ctx.investigationId,
       toolName: "lookup_discord",
@@ -179,9 +202,9 @@ const lookupDiscordHandler: ToolHandler = async (input, ctx) => {
       url: `https://discord.com/users/${user.id}`,
       username: user.global_name ?? user.username,
       confidence: "high",
-      raw: user,
+      raw: { ...user, avatarUrl },
     });
-    return { status: "ok", data: { found: true, username: user.username } };
+    return { status: "ok", data: { found: true, username: user.username, avatarUrl } };
   } catch (e) {
     return { status: "error", note: e instanceof Error ? e.message : "discord_failed" };
   }
@@ -204,7 +227,6 @@ const generateDorksHandler: ToolHandler = async (input, ctx) => {
       .map((l) => l.replace(/^[-*\d.\s]+/, "").trim())
       .filter((l) => l.length > 4 && l.length < 200)
       .slice(0, 8);
-
     for (const d of dorks) {
       await insertFinding({
         investigationId: ctx.investigationId,
@@ -218,6 +240,109 @@ const generateDorksHandler: ToolHandler = async (input, ctx) => {
     return { status: "ok", data: { count: dorks.length, dorks } };
   } catch (e) {
     return { status: "error", note: e instanceof Error ? e.message : "dorks_failed" };
+  }
+};
+
+// --- Cross-platform correlation ---
+
+const DISCORD_PATTERNS = [
+  /discord(?:app)?\.com\/users\/(\d{5,30})/i,
+  /discord\.gg\/([a-z0-9-]{2,20})/i,
+  /(?:discord|dc)\s*[:=#-]\s*([a-z0-9._]{2,32})/i,
+];
+
+const robloxToDiscordHandler: ToolHandler = async (input, ctx) => {
+  const id = Number(input.roblox_id);
+  if (!Number.isFinite(id) || id <= 0) return { status: "error", note: "invalid_roblox_id" };
+  try {
+    const res = await fetchWithTimeout(`https://users.roblox.com/v1/users/${id}`, 8000);
+    if (!res.ok) return { status: "ok", data: { found: false } };
+    const profile = (await res.json()) as { description?: string; name?: string };
+    const desc = profile.description ?? "";
+    const matches: string[] = [];
+    for (const re of DISCORD_PATTERNS) {
+      const m = desc.match(re);
+      if (m) matches.push(m[1]);
+    }
+    if (matches.length === 0) return { status: "ok", data: { found: false } };
+    for (const handle of matches) {
+      await insertFinding({
+        investigationId: ctx.investigationId,
+        toolName: "roblox_to_discord",
+        platform: "Discord (linked)",
+        url: /^\d+$/.test(handle) ? `https://discord.com/users/${handle}` : null,
+        username: handle,
+        confidence: "medium",
+        raw: { source: "roblox_profile_description", robloxId: id, handle },
+      });
+    }
+    return { status: "ok", data: { found: true, matches } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "correlate_failed" };
+  }
+};
+
+const discordToRobloxHandler: ToolHandler = async (input, ctx) => {
+  const id = String(input.discord_id ?? "");
+  if (!/^\d{5,30}$/.test(id)) return { status: "error", note: "invalid_discord_id" };
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) return { status: "not_implemented", note: "DISCORD_BOT_TOKEN not configured" };
+  try {
+    const ures = await fetchWithTimeout(`https://discord.com/api/v10/users/${id}`, 8000, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+    if (!ures.ok) return { status: "ok", data: { found: false } };
+    const user = (await ures.json()) as { username: string; global_name?: string };
+    const candidates = [user.username, user.global_name].filter(Boolean) as string[];
+    const hits: { username: string; robloxId: number }[] = [];
+    for (const u of candidates) {
+      const r = await fetchWithTimeout("https://users.roblox.com/v1/usernames/users", 8000, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [u], excludeBannedUsers: false }),
+      });
+      const j = (await r.json()) as { data?: Array<{ id: number; name: string }> };
+      if (j.data?.[0]) hits.push({ username: j.data[0].name, robloxId: j.data[0].id });
+    }
+    if (hits.length === 0) return { status: "ok", data: { found: false } };
+    for (const h of hits) {
+      await insertFinding({
+        investigationId: ctx.investigationId,
+        toolName: "discord_to_roblox",
+        platform: "Roblox (name match)",
+        url: `https://www.roblox.com/users/${h.robloxId}/profile`,
+        username: h.username,
+        confidence: "medium",
+        raw: { source: "discord_username_match", discordId: id, ...h },
+      });
+    }
+    return { status: "ok", data: { found: true, hits } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "correlate_failed" };
+  }
+};
+
+const hashAvatarHandler: ToolHandler = async (input, ctx) => {
+  const url = String(input.image_url ?? "");
+  if (!/^https?:\/\//.test(url)) return { status: "error", note: "invalid_url" };
+  try {
+    const res = await fetchWithTimeout(url, 8000);
+    if (!res.ok) return { status: "error", note: `fetch_${res.status}` };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const hash = await sha256Hex(bytes);
+    const short = hash.slice(0, 16);
+    await insertFinding({
+      investigationId: ctx.investigationId,
+      toolName: "hash_avatar",
+      platform: "Avatar Hash",
+      url,
+      username: short,
+      confidence: "low",
+      raw: { url, sha256: hash, bytes: bytes.length },
+    });
+    return { status: "ok", data: { sha256: hash, short } };
+  } catch (e) {
+    return { status: "error", note: e instanceof Error ? e.message : "hash_failed" };
   }
 };
 
@@ -261,15 +386,15 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   },
   roblox_to_discord: {
     name: "roblox_to_discord",
-    description: "Cross-reference a Roblox user to a Discord ID.",
+    description: "Cross-reference a Roblox user to a Discord ID via profile description.",
     inputSchema: z.object({ roblox_id: z.number().int().positive() }),
-    handler: notImplemented("roblox_to_discord"),
+    handler: robloxToDiscordHandler,
   },
   discord_to_roblox: {
     name: "discord_to_roblox",
-    description: "Cross-reference a Discord ID to a Roblox user.",
+    description: "Cross-reference a Discord ID to a Roblox user by username match.",
     inputSchema: z.object({ discord_id: z.string().regex(/^\d{5,30}$/) }),
-    handler: notImplemented("discord_to_roblox"),
+    handler: discordToRobloxHandler,
   },
   scrape_url: {
     name: "scrape_url",
@@ -298,9 +423,9 @@ export const TOOL_REGISTRY: Record<string, ToolDefinition> = {
   },
   hash_avatar: {
     name: "hash_avatar",
-    description: "Compute a perceptual hash of an avatar image for cross-platform matching.",
+    description: "SHA-256 hash an avatar image for exact cross-platform matching.",
     inputSchema: z.object({ image_url: z.string().url() }),
-    handler: notImplemented("hash_avatar"),
+    handler: hashAvatarHandler,
   },
   generate_report: {
     name: "generate_report",

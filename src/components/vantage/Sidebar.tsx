@@ -1,4 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard,
   Crosshair,
@@ -12,13 +14,17 @@ import {
   Globe,
   CreditCard,
   Key,
+  Shield,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DiscordIcon } from "@/components/vantage/DiscordGate";
+import { isCurrentUserAdmin } from "@/lib/roles.functions";
 
 const DISCORD_INVITE = "https://discord.gg/JqvvWBZJKr";
 
-const NAV: { section?: string; items: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+
+const NAV: { section?: string; items: NavItem[] }[] = [
   {
     items: [
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -45,12 +51,29 @@ const NAV: { section?: string; items: { to: string; label: string; icon: React.C
   },
 ];
 
+
 export function Sidebar({ email }: { email?: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const adminQ = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => checkAdmin(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const groups = adminQ.data?.admin
+    ? [
+        ...NAV,
+        {
+          section: "Admin",
+          items: [{ to: "/admin", label: "Admin Console", icon: Shield }] as NavItem[],
+        },
+      ]
+    : NAV;
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/auth";
   };
+
 
   return (
     <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-border/60 bg-surface/40 backdrop-blur-xl">
@@ -77,7 +100,7 @@ export function Sidebar({ email }: { email?: string }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 space-y-5">
-        {NAV.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={gi}>
             {group.section && (
               <div className="px-4 mb-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70">

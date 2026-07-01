@@ -40,7 +40,7 @@ export const Route = createFileRoute("/api/public/discord/start")({
         const authUrl = new URL("https://discord.com/oauth2/authorize");
         authUrl.searchParams.set("client_id", clientId);
         authUrl.searchParams.set("response_type", "code");
-        authUrl.searchParams.set("scope", "identify guilds");
+        authUrl.searchParams.set("scope", "identify guilds guilds.members.read");
         authUrl.searchParams.set("redirect_uri", redirect);
         authUrl.searchParams.set("state", state);
         authUrl.searchParams.set("prompt", "consent");

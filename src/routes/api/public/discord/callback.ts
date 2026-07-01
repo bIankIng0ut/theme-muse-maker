@@ -94,6 +94,23 @@ export const Route = createFileRoute("/api/public/discord/callback")({
           return Response.redirect(`${url.origin}/dashboard?discord=not_member`, 302);
         }
 
+        // Role sync: derive plan from Discord roles inside the guild.
+        let derivedPlan: "free" | "pro" | "ultra" = "free";
+        try {
+          const mRes = await fetch(
+            `https://discord.com/api/users/@me/guilds/${guildId}/member`,
+            { headers: { Authorization: `Bearer ${token.access_token}` } },
+          );
+          if (mRes.ok) {
+            const member = (await mRes.json()) as { roles?: string[] };
+            const roles = new Set(member.roles ?? []);
+            const ultraId = process.env.DISCORD_ULTRA_ROLE_ID;
+            const proId = process.env.DISCORD_PRO_ROLE_ID;
+            if (ultraId && roles.has(ultraId)) derivedPlan = "ultra";
+            else if (proId && roles.has(proId)) derivedPlan = "pro";
+          }
+        } catch { /* ignore, keep free */ }
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         // ensure row exists
         const { data: existing } = await supabaseAdmin
@@ -102,7 +119,7 @@ export const Route = createFileRoute("/api/public/discord/callback")({
           .eq("user_id", userId)
           .maybeSingle();
         if (!existing) {
-          await supabaseAdmin.from("user_settings").insert({ user_id: userId });
+          await supabaseAdmin.from("user_settings").insert({ user_id: userId, plan: derivedPlan });
         }
         const { error } = await supabaseAdmin
           .from("user_settings")
@@ -110,12 +127,14 @@ export const Route = createFileRoute("/api/public/discord/callback")({
             discord_id: me.id,
             discord_username: me.username,
             discord_verified_at: new Date().toISOString(),
+            plan: derivedPlan,
           })
           .eq("user_id", userId);
         if (error) {
           return Response.redirect(`${url.origin}/dashboard?discord=save_failed`, 302);
         }
-        return Response.redirect(`${url.origin}/dashboard?discord=verified`, 302);
+        return Response.redirect(`${url.origin}/dashboard?discord=verified&plan=${derivedPlan}`, 302);
+
       },
     },
   },

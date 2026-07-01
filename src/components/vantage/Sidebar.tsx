@@ -54,10 +54,26 @@ const NAV: { section?: string; items: NavItem[] }[] = [
 
 export function Sidebar({ email }: { email?: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const adminQ = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => checkAdmin(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const groups = adminQ.data?.admin
+    ? [
+        ...NAV,
+        {
+          section: "Admin",
+          items: [{ to: "/admin", label: "Admin Console", icon: Shield }] as NavItem[],
+        },
+      ]
+    : NAV;
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/auth";
   };
+
 
   return (
     <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-border/60 bg-surface/40 backdrop-blur-xl">

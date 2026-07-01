@@ -1,4 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard,
   Crosshair,
@@ -12,13 +14,17 @@ import {
   Globe,
   CreditCard,
   Key,
+  Shield,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DiscordIcon } from "@/components/vantage/DiscordGate";
+import { isCurrentUserAdmin } from "@/lib/roles.functions";
 
 const DISCORD_INVITE = "https://discord.gg/JqvvWBZJKr";
 
-const NAV: { section?: string; items: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+
+const NAV: { section?: string; items: NavItem[] }[] = [
   {
     items: [
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -44,6 +50,7 @@ const NAV: { section?: string; items: { to: string; label: string; icon: React.C
     ],
   },
 ];
+
 
 export function Sidebar({ email }: { email?: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

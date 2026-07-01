@@ -117,3 +117,32 @@ export const deleteInvestigation = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const rerunInvestigation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => IdInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: prev, error } = await supabase
+      .from("investigations")
+      .select("target, target_type, options")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!prev) throw new Error("not_found");
+    await consumeQuotaOrThrow(supabase, userId);
+    const { data: row, error: insErr } = await supabase
+      .from("investigations")
+      .insert({
+        owner_id: userId,
+        target: prev.target,
+        target_type: prev.target_type,
+        options: prev.options as never,
+        status: "queued",
+      })
+      .select("id")
+      .single();
+    if (insErr || !row) throw new Error(insErr?.message ?? "insert_failed");
+    return { id: row.id };
+  });
+

@@ -100,7 +100,7 @@ export function Sidebar({ email }: { email?: string }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 space-y-5">
-        {NAV.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={gi}>
             {group.section && (
               <div className="px-4 mb-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/70">

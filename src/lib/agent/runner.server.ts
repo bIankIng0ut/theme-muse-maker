@@ -134,6 +134,7 @@ export async function tickInvestigationRunner(
     if (next === "enumerate") {
       await setStatus(investigationId, "enumerate");
       const t = inv.target_type;
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.target);
       if (t === "discord_id") {
         await runTool(investigationId, inv.owner_id, "lookup_discord", {
           discord_id: inv.target,
@@ -144,6 +145,16 @@ export async function tickInvestigationRunner(
           asId ? { roblox_id: Number(inv.target) } : { roblox_username: inv.target },
           "Enumeration: Roblox user lookup",
         );
+      } else if (t === "email" || (t === "auto" && isEmail)) {
+        await runTool(investigationId, inv.owner_id, "check_breach", {
+          email: inv.target,
+        }, "Enumeration: email intel (gravatar / MX / disposable)");
+        const localPart = inv.target.split("@")[0];
+        if (/^[a-zA-Z0-9_]{3,20}$/.test(localPart)) {
+          await runTool(investigationId, inv.owner_id, "search_username", {
+            username: localPart,
+          }, `Enumeration: scanning local-part "${localPart}" across sites`);
+        }
       } else {
         await runTool(investigationId, inv.owner_id, "search_username", {
           username: inv.target,
@@ -157,6 +168,7 @@ export async function tickInvestigationRunner(
       }
       return { status: "enumerate" };
     }
+
 
     if (next === "evidence") {
       await setStatus(investigationId, "evidence");

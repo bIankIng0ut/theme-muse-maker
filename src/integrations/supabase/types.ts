@@ -242,6 +242,47 @@ export type Database = {
         }
         Relationships: []
       }
+      report_shares: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          investigation_id: string
+          owner_id: string
+          revoked_at: string | null
+          token_hash: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          investigation_id: string
+          owner_id: string
+          revoked_at?: string | null
+          token_hash: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          investigation_id?: string
+          owner_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_shares_investigation_id_fkey"
+            columns: ["investigation_id"]
+            isOneToOne: false
+            referencedRelation: "investigations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -277,6 +318,24 @@ export type Database = {
           },
         ]
       }
+      share_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -306,7 +365,11 @@ export type Database = {
           discord_verified_at: string | null
           nightly_count: number
           nightly_window_start: string
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           plan: string
+          plan_renews_at: string | null
+          plan_source: string
           updated_at: string
           user_id: string
         }
@@ -317,7 +380,11 @@ export type Database = {
           discord_verified_at?: string | null
           nightly_count?: number
           nightly_window_start?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: string
+          plan_renews_at?: string | null
+          plan_source?: string
           updated_at?: string
           user_id: string
         }
@@ -328,7 +395,11 @@ export type Database = {
           discord_verified_at?: string | null
           nightly_count?: number
           nightly_window_start?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: string
+          plan_renews_at?: string | null
+          plan_source?: string
           updated_at?: string
           user_id?: string
         }
@@ -339,6 +410,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_shared_report: {
+        Args: { _token_hash: string }
+        Returns: {
+          finding_count: number
+          investigation_created_at: string
+          investigation_target: string
+          investigation_target_type: string
+          report_identity_graph: Json
+          report_markdown: string
+          report_summary: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

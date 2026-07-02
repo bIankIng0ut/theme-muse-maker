@@ -116,6 +116,7 @@ function ReportPage() {
             <ArrowLeft className="h-3.5 w-3.5" /> Back to live view
           </Link>
           <div className="flex items-center gap-2">
+            <ShareDialog investigationId={id} />
             <button
               onClick={copy}
               disabled={!report?.markdown}

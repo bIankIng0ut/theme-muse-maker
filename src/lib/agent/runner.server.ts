@@ -7,6 +7,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getTool, TOOL_REGISTRY } from "./registry.server";
 import { callLlm } from "./llm.server";
+import { notifyInvestigationComplete } from "./notify.server";
 
 type Phase =
   | "queued"

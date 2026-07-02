@@ -176,8 +176,10 @@ function BillingPage() {
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-foreground/80 mb-2">
           Payments rail
         </div>
-        Vantage is finalising its payments provider. Once enabled, switching tier
-        is one click — your investigations, history, and identity graphs carry over.
+        Vantage's payment rail is being wired up on Stripe. In the meantime,
+        Pro/Ultra access is granted automatically through the Vantage Discord
+        server — link your Discord in <code className="font-mono">Settings</code>{" "}
+        and your role syncs to your plan.
       </div>
     </div>
   );

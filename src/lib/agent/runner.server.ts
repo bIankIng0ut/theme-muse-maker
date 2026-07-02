@@ -7,6 +7,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getTool, TOOL_REGISTRY } from "./registry.server";
 import { callLlm } from "./llm.server";
+import { notifyInvestigationComplete } from "./notify.server";
 
 type Phase =
   | "queued"
@@ -79,6 +80,24 @@ async function setStatus(investigationId: string, status: Phase, errMsg?: string
     .update(patch)
     .eq("id", investigationId);
   if (error) log("status_write_error", { investigationId, error: error.message });
+
+  if (status === "done" || status === "error") {
+    try {
+      const inv = await loadInvestigation(investigationId);
+      const findings = await loadFindings(investigationId);
+      await notifyInvestigationComplete({
+        investigationId,
+        ownerId: inv.owner_id,
+        target: inv.target,
+        targetType: inv.target_type,
+        status,
+        findingCount: findings.length,
+        errorMessage: errMsg ?? null,
+      });
+    } catch (e) {
+      log("notify_failed", { investigationId, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
 }
 
 async function loadInvestigation(investigationId: string) {

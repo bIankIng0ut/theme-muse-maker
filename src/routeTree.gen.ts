@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -38,6 +39,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RTokenRoute = RTokenRouteImport.update({
+  id: '/r/$token',
+  path: '/r/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
   '/api/chat': typeof ApiChatRoute
+  '/r/$token': typeof RTokenRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
   '/api/chat': typeof ApiChatRoute
+  '/r/$token': typeof RTokenRoute
   '/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/report/$id': typeof AuthenticatedReportIdRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
   '/api/chat': typeof ApiChatRoute
+  '/r/$token': typeof RTokenRoute
   '/_authenticated/investigate/$id': typeof AuthenticatedInvestigateIdRoute
   '/_authenticated/report/$id': typeof AuthenticatedReportIdRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sites'
     | '/api/chat'
+    | '/r/$token'
     | '/investigate/$id'
     | '/report/$id'
     | '/api/public/discord/callback'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sites'
     | '/api/chat'
+    | '/r/$token'
     | '/investigate/$id'
     | '/report/$id'
     | '/api/public/discord/callback'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/sites'
     | '/api/chat'
+    | '/r/$token'
     | '/_authenticated/investigate/$id'
     | '/_authenticated/report/$id'
     | '/api/public/discord/callback'
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiChatRoute: typeof ApiChatRoute
+  RTokenRoute: typeof RTokenRoute
   ApiPublicDiscordCallbackRoute: typeof ApiPublicDiscordCallbackRoute
   ApiPublicDiscordStartRoute: typeof ApiPublicDiscordStartRoute
 }
@@ -246,6 +259,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$token': {
+      id: '/r/$token'
+      path: '/r/$token'
+      fullPath: '/r/$token'
+      preLoaderRoute: typeof RTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -376,6 +396,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiChatRoute: ApiChatRoute,
+  RTokenRoute: RTokenRoute,
   ApiPublicDiscordCallbackRoute: ApiPublicDiscordCallbackRoute,
   ApiPublicDiscordStartRoute: ApiPublicDiscordStartRoute,
 }

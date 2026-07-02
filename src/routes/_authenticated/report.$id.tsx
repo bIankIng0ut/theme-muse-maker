@@ -1,12 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { getInvestigation } from "@/lib/investigations.functions";
+import { createReportShare, listReportShares, revokeReportShare } from "@/lib/shares.functions";
 import { StatusBadge } from "@/components/vantage/StatusBadge";
 import { IdentityGraph } from "@/components/vantage/IdentityGraph";
-import { ArrowLeft, Copy, Printer, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Printer, ExternalLink, Share2, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type GraphNode = { id: string; label?: string; type?: string };
 type GraphEdge = { source: string; target: string; label?: string };
@@ -108,6 +116,7 @@ function ReportPage() {
             <ArrowLeft className="h-3.5 w-3.5" /> Back to live view
           </Link>
           <div className="flex items-center gap-2">
+            <ShareDialog investigationId={id} />
             <button
               onClick={copy}
               disabled={!report?.markdown}
@@ -214,5 +223,137 @@ function ReportPage() {
         )}
       </div>
     </>
+  );
+}
+
+function ShareDialog({ investigationId }: { investigationId: string }) {
+  const create = useServerFn(createReportShare);
+  const list = useServerFn(listReportShares);
+  const revoke = useServerFn(revokeReportShare);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const shares = useQuery({
+    queryKey: ["shares", investigationId],
+    queryFn: () => list({ data: { investigation_id: investigationId } }),
+    enabled: open,
+  });
+
+  const createMut = useMutation({
+    mutationFn: async (ttl_days: number) =>
+      create({ data: { investigation_id: investigationId, ttl_days } }),
+    onSuccess: async (data) => {
+      const url = `${window.location.origin}/r/${data.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied", { description: url });
+      } catch {
+        toast.success("Share link created", { description: url });
+      }
+      qc.invalidateQueries({ queryKey: ["shares", investigationId] });
+    },
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : "Failed to create share";
+      toast.error(
+        msg === "share_rate_limit_reached"
+          ? "Daily share limit reached (20/day)."
+          : msg,
+      );
+    },
+  });
+
+  const revokeMut = useMutation({
+    mutationFn: async (id: string) => revoke({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Share revoked");
+      qc.invalidateQueries({ queryKey: ["shares", investigationId] });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-mono uppercase tracking-wider hover:bg-surface-elevated">
+          <Share2 className="h-3.5 w-3.5" /> Share
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-sm uppercase tracking-wider">
+            Share dossier
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="text-xs text-muted-foreground">
+            Public read-only link. Anyone with the URL can view the dossier until it expires or is revoked.
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => createMut.mutate(1)}
+              disabled={createMut.isPending}
+              className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-xs font-mono hover:bg-surface-elevated disabled:opacity-40"
+            >
+              24 hours
+            </button>
+            <button
+              onClick={() => createMut.mutate(7)}
+              disabled={createMut.isPending}
+              className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-mono text-primary-foreground hover:opacity-90 disabled:opacity-40"
+            >
+              7 days
+            </button>
+            <button
+              onClick={() => createMut.mutate(30)}
+              disabled={createMut.isPending}
+              className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-xs font-mono hover:bg-surface-elevated disabled:opacity-40"
+            >
+              30 days
+            </button>
+          </div>
+
+          <div className="border-t border-border pt-3">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+              Active links
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {(shares.data ?? []).length === 0 && (
+                <div className="text-xs text-muted-foreground font-mono text-center py-4">
+                  {shares.isLoading ? "Loading…" : "No shares yet."}
+                </div>
+              )}
+              {(shares.data ?? []).map((s: any) => {
+                const revoked = !!s.revoked_at;
+                const expired = new Date(s.expires_at).getTime() < Date.now();
+                return (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 text-xs font-mono rounded border border-border bg-surface px-2 py-1.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-foreground/90 truncate">
+                        {revoked ? "Revoked" : expired ? "Expired" : `Expires ${new Date(s.expires_at).toLocaleDateString()}`}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {s.view_count} view{s.view_count === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                    {!revoked && !expired && (
+                      <button
+                        onClick={() => revokeMut.mutate(s.id)}
+                        disabled={revokeMut.isPending}
+                        className="text-destructive hover:opacity-80 shrink-0"
+                        aria-label="Revoke"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

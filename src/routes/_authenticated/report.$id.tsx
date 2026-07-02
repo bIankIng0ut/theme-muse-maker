@@ -1,12 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { getInvestigation } from "@/lib/investigations.functions";
+import { createReportShare, listReportShares, revokeReportShare } from "@/lib/shares.functions";
 import { StatusBadge } from "@/components/vantage/StatusBadge";
 import { IdentityGraph } from "@/components/vantage/IdentityGraph";
-import { ArrowLeft, Copy, Printer, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Printer, ExternalLink, Share2, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type GraphNode = { id: string; label?: string; type?: string };
 type GraphEdge = { source: string; target: string; label?: string };

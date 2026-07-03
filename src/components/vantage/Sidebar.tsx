@@ -10,7 +10,6 @@ import {
   Database,
   Settings,
   LogOut,
-  Radar,
   Globe,
   CreditCard,
   Key,

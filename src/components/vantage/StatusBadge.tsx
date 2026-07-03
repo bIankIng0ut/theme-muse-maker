@@ -8,20 +8,20 @@ type Status =
   | string;
 
 const styles: Record<string, string> = {
-  queued: "bg-muted text-muted-foreground border-border",
-  running: "bg-primary/15 text-primary border-primary/40 animate-pulse",
-  filtering: "bg-primary/15 text-primary border-primary/40 animate-pulse",
-  reporting: "bg-primary/15 text-primary border-primary/40 animate-pulse",
-  done: "bg-success/15 text-success border-success/40",
-  error: "bg-destructive/15 text-destructive border-destructive/40",
+  queued: "tag-neutral",
+  running: "tag-info animate-pulse",
+  filtering: "tag-info animate-pulse",
+  reporting: "tag-info animate-pulse",
+  correlate: "tag-closed animate-pulse",
+  done: "tag-open",
+  error: "tag-pill bg-destructive/20 text-destructive border border-destructive/50",
 };
 
 export function StatusBadge({ status }: { status: Status }) {
   const cls = styles[status] ?? styles.queued;
   return (
-    <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider ${cls}`}
-    >
+    <span className={`tag-pill ${cls} uppercase tracking-wider`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
       {status}
     </span>
   );

@@ -115,10 +115,10 @@ export function Sidebar({ email }: { email?: string }) {
                   <Link
                     key={`${gi}-${i}`}
                     to={item.to}
-                    className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                    className={`flex items-center gap-2.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       active
-                        ? "bg-primary/10 text-primary border border-primary/30"
-                        : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground border border-transparent"
+                        ? "bg-primary/15 text-primary border border-primary/50 shadow-[0_0_18px_-6px_oklch(0.68_0.24_295/0.8)]"
+                        : "text-muted-foreground hover:bg-primary/5 hover:text-foreground border border-transparent"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />

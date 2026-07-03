@@ -76,11 +76,11 @@ export function Sidebar({ email }: { email?: string }) {
 
 
   return (
-    <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-border/60 bg-surface/40 backdrop-blur-xl">
+    <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-border/60 bg-background/40 backdrop-blur-xl">
       <div className="flex items-center gap-2 px-4 h-14 border-b border-border/60">
-        <Radar className="h-4 w-4 text-primary" />
-        <span className="font-mono font-bold tracking-widest text-sm">VANTAGE</span>
-        <span className="ml-auto text-[9px] font-mono uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">
+        <div className="h-6 w-6 rounded-md iridescent animate-iridescent shadow-[0_0_16px_-2px_oklch(0.68_0.24_295/0.7)]" />
+        <span className="font-display font-bold tracking-tight text-base">VANTAGE</span>
+        <span className="ml-auto text-[9px] font-display uppercase tracking-widest text-primary/80 border border-primary/40 rounded-full px-2 py-0.5">
           OSINT
         </span>
       </div>

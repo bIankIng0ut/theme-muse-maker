@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/vantage/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Terminal, ExternalLink, FileText } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+
 
 
 export const Route = createFileRoute("/_authenticated/investigate/$id")({

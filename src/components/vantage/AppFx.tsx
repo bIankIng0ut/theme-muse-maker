@@ -95,27 +95,3 @@ function MotionBlurOverlay() {
     </div>
   );
 }
-
-
-  const titleFor = (p: string) => {
-    if (p === "/dashboard") return "DASHBOARD";
-    if (p === "/settings") return "SETTINGS";
-    return "VANTAGE";
-  };
-  const subFor = (p: string) => {
-    if (p === "/dashboard") return "OPERATIONS CONSOLE ONLINE";
-    if (p === "/settings") return "CONFIGURATION LAYER";
-    return "MULTI-AGENT OSINT RUNTIME";
-  };
-
-  if (!introKey) return null;
-  const norm = pathname.replace(/\/$/, "") || "/";
-  return (
-    <CinematicIntro
-      triggerKey={introKey}
-      title={titleFor(norm)}
-      subtitle={subFor(norm)}
-      onDone={() => setIntroKey(null)}
-    />
-  );
-}

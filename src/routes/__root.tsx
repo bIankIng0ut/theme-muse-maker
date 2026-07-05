@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AnimatedBackground } from "@/components/vantage/AnimatedBackground";
+import { AppFx } from "@/components/vantage/AppFx";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AnimatedBackground />
       <Outlet />
+      <AppFx />
       <Toaster theme="dark" />
     </QueryClientProvider>
   );
